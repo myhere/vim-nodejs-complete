@@ -14,12 +14,12 @@ completion require `:filetype plugin on`, please make sure it's switched on
 
 ## Example
 
-     ```js
-     var fs = require('fs');
+```js
+var fs = require('fs');
 
-     fs.
-     // then hit ctrl-x_ctrl-o
-     ```
+fs.
+// then hit ctrl-x_ctrl-o
+```
 
 ## feedback
 
