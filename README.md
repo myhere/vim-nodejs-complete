@@ -9,12 +9,11 @@ nodejs 'omnifunc' function of vim
 download the [tarball](https://github.com/myhere/vim-nodejs-complete/zipball/master) and extract to your vimfiles(`~/.vim` or
 `~/vimfiles`) folder
 
-[[completion]] require `:filetype plugin on`, please make sure it's switched on
+completion require `:filetype plugin on`, please make sure it's switched on
 
 
 ## Example
-
-     ```javascript
+     ```js
 
      var fs = require('fs');
 
