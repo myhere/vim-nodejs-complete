@@ -15,7 +15,7 @@ endfunction
 " complete node's build-in module
 function! nodejscomplete#FindNodeComplete(base)
     let context = getline('.')
-    Decho 'context: ' . context
+    "Decho 'context: ' . context
 
     let ret = []
 
@@ -25,7 +25,7 @@ function! nodejscomplete#FindNodeComplete(base)
         return ret
     endif
 
-    Decho 'var_name: ' . var_name
+    "Decho 'var_name: ' . var_name
 
     " get variable declared line number
     let decl_line = search(var_name . '\s*=\s*require\s*(.\{-})', 'bn')
@@ -44,20 +44,20 @@ function! nodejscomplete#FindNodeComplete(base)
 endfunction
 
 function! nodejscomplete#GetModData(mod_name, prop_name)
-    Decho 'mod_name: ' . a:mod_name
-    Decho 'prop_name: ' . a:prop_name
+    "Decho 'mod_name: ' . a:mod_name
+    "Decho 'prop_name: ' . a:prop_name
 
     " load node module data
     if (!exists('g:nodejs_complete_modules'))
       " load data from external file
       let filename = s:nodejs_doc_file
-      Decho 'filename: ' . filename
+      "Decho 'filename: ' . filename
       if (filereadable(filename))
-        Decho 'readable'
+        "Decho 'readable'
         execute 'so ' . filename
-        Decho string(g:nodejs_complete_modules)
+        "Decho string(g:nodejs_complete_modules)
       else
-        Decho 'not readable'
+        "Decho 'not readable'
       endif
     endif
 
@@ -72,7 +72,7 @@ function! nodejscomplete#GetModData(mod_name, prop_name)
     " no prop_name suplied
     if (len(a:prop_name) == 0)
       let ret = mod
-      Decho string(mod)
+      "Decho string(mod)
     else
       " filter properties with prop_name
       let ret = filter(mod, 'v:val["word"] =~# "' . a:prop_name . '"')
