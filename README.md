@@ -1,7 +1,7 @@
 vim-nodejs-complete
 ===================
 
-Support node build-in module's method completion(`ctrl-x ctrl-o`) in `js` file with [[preview.]]
+Support node build-in module's method completion(`ctrl-x ctrl-o`) in `js` file with preview.
 
 Nodejs 'omnifunc' function of vim
 
