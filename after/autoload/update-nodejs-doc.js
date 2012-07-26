@@ -3,19 +3,59 @@
 var util = require('util'),
     fs = require('fs'),
     path = require('path'),
-    os = require('os');
+    os = require('os'),
+    emitter = new (require('events')).EventEmitter();
 
 init();
 
 function init() {
-  // TODO: listen process.uncaughtException event
+  initEvents();
 
   initLoading();
 
   getNodejsDoc();
 }
 
+function initEvents() {
+  // uncatched exception
+  process.on('uncaughtException', function(err) {
+    clearLoading();
+
+    console.error('Error: ' + err);
+  });
+
+  emitter.on('vimscript/done', function(message) {
+    clearLoading();
+    console.log(message);
+    console.log('Done!');
+  });
+}
+
 function initLoading() {
+  var chars = [
+    '-',
+    '\\',
+    '|',
+    '/'
+  ];
+
+  var index = 0,
+      total = chars.length;
+
+  initLoading.timer = setInterval(function() {
+    index = ++index % total;
+
+    var c = chars[index];
+
+    // clear console
+    // @see: https://groups.google.com/forum/?fromgroups#!topic/nodejs/i-oqYFVty5I
+    process.stdout.write('\033[2J\033[0;0H');
+    console.log('please wait:');
+    console.log(c);
+  }, 200);
+}
+function clearLoading() {
+  clearInterval(initLoading.timer);
 }
 
 function getNodejsDoc() {
@@ -69,8 +109,12 @@ function write2VimScript(body) {
   });
 
 
-  var content = 'let g:nodejs_complete_modules = ' + JSON.stringify(vimObject);
-  content = '" this file is auto created by "' + __filename + '", please do not edit it yourself!' + os.EOL + content;
+  var content = 'let g:nodejs_complete_modules = ' + JSON.stringify(vimObject),
+      comment = '" this file is auto created by "' + __filename + '", please do not edit it yourself!';
+  content = comment  + os.EOL + content;
 
-  fs.writeFileSync(path.join(__dirname, 'nodejs-doc.vim'), content);
+  var filename = path.join(__dirname, 'nodejs-doc.vim'); 
+  fs.writeFile(filename, content, function(err) {
+    emitter.emit('vimscript/done', 'write file to "' + filename + '" complete.');
+  });
 }
