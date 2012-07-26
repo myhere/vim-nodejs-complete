@@ -19,6 +19,9 @@ var fs = require('fs');
 
 fs.
 // then hit ctrl-x_ctrl-o
+
+fs.wri
+// then hit ctrl-x_ctrl-o
 ```
 
 ## feedback
