@@ -13,10 +13,11 @@ download the [tarball](https://github.com/myhere/vim-nodejs-complete/zipball/mas
 
 
 ## Example
+
      ```javascript
-     
+
      var fs = require('fs');
-     
+
      fs.
      // then hit ctrl-x_ctrl-o
      ```
