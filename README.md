@@ -25,5 +25,5 @@ fs.wri
 ```
 
 ## Feedback
-
+[feedback or advice](https://github.com/myhere/vim-nodejs-complete/issues)
 
