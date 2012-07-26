@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 
+/**
+ * @author: Lin Zhang ( myhere.2009 AT gmail DOT com )
+ * @fileoverview: This script for auto-generate nodejs-doc.vim 
+ */
+
 var util = require('util'),
     fs = require('fs'),
     path = require('path'),

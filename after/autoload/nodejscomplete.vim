@@ -1,3 +1,8 @@
+" Vim completion script
+" Language:	Javascript
+" Maintainer:	Lin Zhang ( myhere.2009 AT gmail DOT com )
+" Last Change:	2012-7-26 12:36:45
+
 " save current dir
 let s:nodejs_doc_file = expand('<sfile>:p:h') . '/nodejs-doc.vim'
 
