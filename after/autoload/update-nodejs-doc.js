@@ -192,7 +192,12 @@ console.
 process.st
 
 // not exists module
-hello.length
+foo.
+
+foo.bar
+
+var foobar = require('foobar');
+foobar.
 
 
 ***************************************************/
