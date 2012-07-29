@@ -77,22 +77,42 @@ function getNodejsDoc() {
         var buf = Buffer.concat(chunks),
             body = buf.toString('utf-8');
 
-        write2VimScript(body);
+        extract2VimScript(body);
       });
   }).on('error', function(e) {
     console.error('problem with request: ' + e.message);
   });
 }
 
-function write2VimScript(body) {
+function extract2VimScript(body) {
   // for debug
-  // fs.writeFileSync('./nodejs-doc-all.json', body);
+  fs.writeFileSync('./nodejs-doc-all.json', body);
   var json = JSON.parse(body),
-      modules = json.modules,
-      vimObject = {};
+      vimObject;
+
+  vimObject = {
+    'globals': getModInfo(json.globals),
+    'modules': getModInfo(json.modules)
+  };
 
 
-  modules.forEach(function(mod) {
+  var filename = path.join(__dirname, 'nodejs-doc.vim'),
+      comment = '" this file is auto created by "' + __filename + '", please do not edit it yourself!',
+      content = 'let g:nodejs_complete_modules = ' + JSON.stringify(vimObject),
+
+  content = comment  + os.EOL + content;
+
+  fs.writeFile(filename, content, function(err) {
+    emitter.emit('vimscript/done', 'write file to "' + filename + '" complete.');
+  });
+
+  // for debug
+  fs.writeFileSync(filename + '.js', JSON.stringify(vimObject, null, 2));
+}
+
+function getModInfo(mods) {
+  var ret = {};
+  mods.forEach(function(mod) {
     var list = [];
 
     // methods
@@ -102,6 +122,7 @@ function write2VimScript(body) {
       if (method.type == 'method') {
         item.word = method.name + '(';
         item.info = method.textRaw;
+        item.kind = 'f'
 
         list.push(item);
       }
@@ -112,6 +133,7 @@ function write2VimScript(body) {
     properties.forEach(function(property) {
       var item = {};
       item.word = property.name;
+      item.kind = 'm'
 
       list.push(item);
     });
@@ -143,20 +165,34 @@ function write2VimScript(body) {
       }
     }
 
-    vimObject[mod_name] = list;
+    ret[mod_name] = list;
   });
 
-
-
-  var filename = path.join(__dirname, 'nodejs-doc.vim'); 
-  var content = 'let g:nodejs_complete_modules = ' + JSON.stringify(vimObject),
-      comment = '" this file is auto created by "' + __filename + '", please do not edit it yourself!';
-  content = comment  + os.EOL + content;
-
-  fs.writeFile(filename, content, function(err) {
-    emitter.emit('vimscript/done', 'write file to "' + filename + '" complete.');
-  });
-
-  // for debug
-  // fs.writeFileSync(filename + '.js', JSON.stringify(vimObject, null, 2));
+  return ret;
 }
+
+
+/*************** code below for test ***************
+
+var fs = require('fs'),
+    path = require('path');
+
+
+// requried module test
+fs.
+
+path.re
+
+fs.write path.join('hello', 'world'), 'content here'));
+
+
+// global module test
+console.
+
+process.st
+
+// not exists module
+hello.length
+
+
+***************************************************/

@@ -1,7 +1,7 @@
 " Vim completion script
-" Language:	Javascript
+" Language:	Javascript(node)
 " Maintainer:	Lin Zhang ( myhere.2009 AT gmail DOT com )
-" Last Change:	2012-7-26 12:36:45
+" Last Change:	2012-7-29 23:45:08
 
 " save current dir
 let s:nodejs_doc_file = expand('<sfile>:p:h') . '/nodejs-doc.vim'
@@ -48,23 +48,28 @@ function! nodejscomplete#FindNodeComplete(base)
 
   " get variable declared line number
   let decl_line = search(var_name . '\s*=\s*require\s*(.\{-})', 'bn')
-  if (decl_line == 0) 
-    return ret
-  endif
-  " find the node module name
-  let mod_name = matchstr(getline(decl_line), var_name . '\s*=\s*require\s*(\s*\(["' . "'" . ']\)\zs.\{-}\ze\(\1\)\s*)')
+  Decho 'decl_line: ' . decl_line
 
-  if exists('mod_name')
-    let ret = ret + nodejscomplete#GetModData(mod_name, a:base)
+  if (decl_line == 0) 
+    " maybe a global module
+    let ret = nodejscomplete#GetCompleteOption(var_name, a:base, 'globals')
+  else
+    " find the node module name
+    let mod_name = matchstr(getline(decl_line), var_name . '\s*=\s*require\s*(\s*\(["' . "'" . ']\)\zs.\{-}\ze\(\1\)\s*)')
+
+    if exists('mod_name')
+      let ret = nodejscomplete#GetCompleteOption(mod_name, a:base, 'modules')
+    endif
   endif
 
   return ret
 
 endfunction
 
-function! nodejscomplete#GetModData(mod_name, prop_name)
+function! nodejscomplete#GetCompleteOption(mod_name, prop_name, type)
   Decho 'mod_name: ' . a:mod_name
   Decho 'prop_name: ' . a:prop_name
+  Decho 'type: ' . a:type
 
   " load node module data
   if (!exists('g:nodejs_complete_modules'))
@@ -81,12 +86,16 @@ function! nodejscomplete#GetModData(mod_name, prop_name)
   endif
 
   let ret = []
+  let mods = {}
+  let mod = []
 
-  if (!has_key(g:nodejs_complete_modules, a:mod_name))
-    return ret
+  if (has_key(g:nodejs_complete_modules, a:type))
+    let mods = copy(g:nodejs_complete_modules[a:type])
   endif
 
-  let mod = copy(g:nodejs_complete_modules[a:mod_name])
+  if (has_key(mods, a:mod_name))
+    let mod = mods[a:mod_name]
+  endif
 
   " no prop_name suplied
   if (len(a:prop_name) == 0)
