@@ -91,14 +91,15 @@ function extract2VimScript(body) {
       vimObject;
 
   vimObject = {
-    'globals': getModInfo(json.globals),
-    'modules': getModInfo(json.modules)
+    'globals': mergeObject(getModInfo(json.globals), getModInfo(json.vars)),
+    'modules': getModInfo(json.modules),
+    'vars': getVarInfo(json.vars)
   };
 
 
   var filename = path.join(__dirname, 'nodejs-doc.vim'),
       comment = '" this file is auto created by "' + __filename + '", please do not edit it yourself!',
-      content = 'let g:nodejs_complete_modules = ' + JSON.stringify(vimObject),
+      content = 'let g:nodejs_complete_data = ' + JSON.stringify(vimObject),
 
   content = comment  + os.EOL + content;
 
@@ -112,6 +113,10 @@ function extract2VimScript(body) {
 
 function getModInfo(mods) {
   var ret = {};
+  if (!util.isArray(mods)) {
+    return ret;
+  }
+
   mods.forEach(function(mod) {
     var list = [];
 
@@ -171,6 +176,52 @@ function getModInfo(mods) {
   return ret;
 }
 
+function getVarInfo(vars) {
+  var ret = [];
+  if (!util.isArray(vars)) {
+    return ret;
+  }
+
+  vars.forEach(function(_var) {
+    // if var is a function
+    if ((/\([^\(\)]*\)\s*$/).test(_var.textRaw)) {
+      ret.push({
+        word: _var.name + '(',
+        info: _var.textRaw,
+        kind: 'f'
+      });
+    } else {
+      ret.push({
+        word: _var.name,
+        kind: 'v'
+      });
+    }
+  });
+
+  return ret;
+}
+
+/**
+ * @desc merge Object
+ * @arguemnts: {Object}
+ *
+ * @return: return the new merged Object
+ */
+function mergeObject() {
+  var ret = {},
+      args = Array.prototype.slice.call(arguments);
+
+  args.forEach(function(obj) {
+    for (var p in obj) {
+      if (obj.hasOwnProperty(p)) {
+        ret[p] = obj[p];
+      }
+    }
+  });
+
+  return ret;
+}
+
 
 /*************** code below for test ***************
 
@@ -178,7 +229,7 @@ var fs = require('fs'),
     path = require('path');
 
 
-// requried module test
+// requried module test:
 fs.
 
 path.re
@@ -186,12 +237,22 @@ path.re
 fs.write path.join('hello', 'world'), 'content here'));
 
 
-// global module test
-console.
+// global module test:
+var hello = 'world'; console.
 
 process.st
 
-// not exists module
+require.
+
+
+// global variable test:
+__
+
+var timer =  req
+
+
+
+// not exists module:
 foo.
 
 foo.bar

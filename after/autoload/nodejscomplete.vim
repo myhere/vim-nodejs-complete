@@ -17,15 +17,12 @@ function! nodejscomplete#CompleteJS(findstart, base)
     return start
   else
     let nodeCompl = nodejscomplete#FindNodeComplete(a:base)
-    let jsCompl = []
-
-    if (len(nodeCompl) == 0)
-      let jsCompl = javascriptcomplete#CompleteJS(a:findstart, a:base)
-    endif
+    let jsCompl = javascriptcomplete#CompleteJS(a:findstart, a:base)
 
     return nodeCompl + jsCompl
   endif
 endfunction
+
 
 " complete node's build-in module
 function! nodejscomplete#FindNodeComplete(base)
@@ -38,59 +35,48 @@ function! nodejscomplete#FindNodeComplete(base)
 
   let ret = []
 
-  " get variable name
-  let var_name = matchstr(context, '\k\+\ze\.$')
-  if (len(var_name) == 0)
-    return ret
-  endif
+  " get object name
+  let obj_name = matchstr(context, '\k\+\ze\.$')
 
-  Decho 'var_name: ' . var_name
+  if (len(obj_name) == 0) " variable complete
+    let ret = nodejscomplete#GetVariableComplete(a:base)
+  else " module complete
+    Decho 'obj_name: ' . obj_name
 
-  " get variable declared line number
-  let decl_line = search(var_name . '\s*=\s*require\s*(.\{-})', 'bn')
-  Decho 'decl_line: ' . decl_line
+    " get variable declared line number
+    let decl_line = search(obj_name . '\s*=\s*require\s*(.\{-})', 'bn')
+    Decho 'decl_line: ' . decl_line
 
-  if (decl_line == 0) 
-    " maybe a global module
-    let ret = nodejscomplete#GetCompleteOption(var_name, a:base, 'globals')
-  else
-    " find the node module name
-    let mod_name = matchstr(getline(decl_line), var_name . '\s*=\s*require\s*(\s*\(["' . "'" . ']\)\zs.\{-}\ze\(\1\)\s*)')
+    if (decl_line == 0) 
+      " maybe a global module
+      let ret = nodejscomplete#GetModuleComplete(obj_name, a:base, 'globals')
+    else
+      " find the node module name
+      let mod_name = matchstr(getline(decl_line), obj_name . '\s*=\s*require\s*(\s*\(["' . "'" . ']\)\zs.\{-}\ze\(\1\)\s*)')
 
-    if exists('mod_name')
-      let ret = nodejscomplete#GetCompleteOption(mod_name, a:base, 'modules')
+      if exists('mod_name')
+        let ret = nodejscomplete#GetModuleComplete(mod_name, a:base, 'modules')
+      endif
     endif
   endif
 
   return ret
-
 endfunction
 
-function! nodejscomplete#GetCompleteOption(mod_name, prop_name, type)
+
+function! nodejscomplete#GetModuleComplete(mod_name, prop_name, type)
   Decho 'mod_name: ' . a:mod_name
   Decho 'prop_name: ' . a:prop_name
   Decho 'type: ' . a:type
 
-  " load node module data
-  if (!exists('g:nodejs_complete_modules'))
-    " load data from external file
-    let filename = s:nodejs_doc_file
-    Decho 'filename: ' . filename
-    if (filereadable(filename))
-      Decho 'readable'
-      execute 'so ' . filename
-      Decho string(g:nodejs_complete_modules)
-    else
-      Decho 'not readable'
-    endif
-  endif
+  call nodejscomplete#LoadNodeDocData()
 
   let ret = []
   let mods = {}
   let mod = []
 
-  if (has_key(g:nodejs_complete_modules, a:type))
-    let mods = copy(g:nodejs_complete_modules[a:type])
+  if (has_key(g:nodejs_complete_data, a:type))
+    let mods = copy(g:nodejs_complete_data[a:type])
   endif
 
   if (has_key(mods, a:mod_name))
@@ -107,6 +93,41 @@ function! nodejscomplete#GetCompleteOption(mod_name, prop_name, type)
   Decho string(ret)
 
   return ret
+endfunction
+
+
+function! nodejscomplete#GetVariableComplete(var_name)
+  Decho 'var_name: ' . a:var_name
+
+  call nodejscomplete#LoadNodeDocData()
+
+  let ret = []
+  let vars = []
+
+  if (has_key(g:nodejs_complete_data, 'vars'))
+    let vars = copy(g:nodejs_complete_data.vars)
+  endif
+
+  let ret = filter(vars, 'v:val["word"] =~# "^' . a:var_name . '"')
+
+  return ret
+endfunction
+
+
+function! nodejscomplete#LoadNodeDocData()
+  " load node module data
+  if (!exists('g:nodejs_complete_data'))
+    " load data from external file
+    let filename = s:nodejs_doc_file
+    Decho 'filename: ' . filename
+    if (filereadable(filename))
+      Decho 'readable'
+      execute 'so ' . filename
+      Decho string(g:nodejs_complete_data)
+    else
+      Decho 'not readable'
+    endif
+  endif
 endfunction
 
 
