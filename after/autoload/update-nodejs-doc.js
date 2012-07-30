@@ -26,7 +26,7 @@ function initEvents() {
   process.on('uncaughtException', function(err) {
     clearLoading();
 
-    console.error('Error: ' + err);
+    console.error('Error: ' + err.stack);
   });
 
   emitter.on('vimscript/done', function(message) {
@@ -91,8 +91,8 @@ function extract2VimScript(body) {
       vimObject;
 
   vimObject = {
-    'globals': mergeObject(getModInfo(json.globals), getModInfo(json.vars)),
-    'modules': getModInfo(json.modules),
+    'globals': sortModuleByName(mergeObject(getModInfo(json.globals), getModInfo(json.vars))),
+    'modules': sortModuleByName(getModInfo(json.modules)),
     'vars': getVarInfo(json.vars)
   };
 
@@ -149,12 +149,7 @@ function getModInfo(mods) {
     }
 
     // sort items
-    list = list.sort(function(a, b) {
-      var a_w = a.word.toLowerCase(),
-          b_w = b.word.toLowerCase();
-
-      return a_w < b_w ? -1 : (a_w > b_w ? 1 : 0);
-    });
+    list = list.sort(sortModuleByMethodName);
 
 
     // module name
@@ -198,7 +193,39 @@ function getVarInfo(vars) {
     }
   });
 
+  // sort
+  ret = ret.sort(sortModuleByMethodName);
+
   return ret;
+}
+
+
+// helpers
+/**
+ * @param {Object}
+ */
+function sortModuleByName(mods) {
+  var keys = Object.keys(mods);
+  // sort
+  keys.sort();
+
+  var ret = {};
+  keys.forEach(function(k) {
+    ret[k] = mods[k];
+  });
+
+  return ret;
+}
+
+/**
+ * @param {Object}
+ * @param {Object}
+ */
+function sortModuleByMethodName(a, b) {
+  var a_w = a.word.toLowerCase(),
+      b_w = b.word.toLowerCase();
+
+  return a_w < b_w ? -1 : (a_w > b_w ? 1 : 0);
 }
 
 /**
@@ -231,30 +258,22 @@ var fs = require('fs'),
 
 // requried module test:
 fs.
-
 path.re
-
 fs.write path.join('hello', 'world'), 'content here'));
 
 
 // global module test:
 var hello = 'world'; console.
-
 process.st
-
-
-require( 
-require( '
-var a = require("
-
-
+require("
+require('
+var a = require('t
+var b = require("t
 require("abc
-
 
 
 // global variable test:
 __
-
 var timer =  req
 
 
