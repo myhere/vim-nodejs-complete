@@ -242,14 +242,20 @@ var hello = 'world'; console.
 
 process.st
 
-require.
+
+require( 
+require( '
+var a = require("
+
+
+require("abc
+
 
 
 // global variable test:
 __
 
 var timer =  req
-
 
 
 // not exists module:

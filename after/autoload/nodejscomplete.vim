@@ -39,7 +39,7 @@ function! nodejscomplete#FindNodeComplete(base)
   let obj_name = matchstr(context, '\k\+\ze\.$')
 
   if (len(obj_name) == 0) " variable complete
-    let ret = nodejscomplete#GetVariableComplete(a:base)
+    let ret = nodejscomplete#GetVariableComplete(context, a:base)
   else " module complete
     Decho 'obj_name: ' . obj_name
 
@@ -96,8 +96,14 @@ function! nodejscomplete#GetModuleComplete(mod_name, prop_name, type)
 endfunction
 
 
-function! nodejscomplete#GetVariableComplete(var_name)
+function! nodejscomplete#GetVariableComplete(context, var_name)
   Decho 'var_name: ' . a:var_name
+
+  " complete require's arguments
+  let matched = matchlist(a:context, 'require\s*(\s*\(["' . "'". ']\)\=$')
+  if (len(matched) > 0)
+    Decho 'require: ' . string(matched) . ' length: ' . len(matched)
+  endif
 
   call nodejscomplete#LoadNodeDocData()
 
