@@ -256,39 +256,22 @@ function mergeObject() {
 
 /*************** code below for test ***************
 
-var fs = require('fs'),
-    path = require('path');
+// require complete
+var fs = req
+var http = require(
+var util = require('u
 
 
-// requried module test:
+// module methdo complete
+var fs = require('fs');
 fs.
-path.re
-fs.write path.join('hello', 'world'), 'content here'));
+fs.writ
 
 
-// global module test:
-var hello = 'world'; console.
-process.st
-require
-require("
-require('
-var a = require('t
-var b = require("t
-require("abc
-
-
-// global variable test:
-__
-var timer =  req
-
-
-// not exists module:
-foo.
-
-foo.bar
-
-var foobar = require('foobar');
-foobar.
-
+// global variable complete
+var filename = __
+mo
+cons
+console.l
 
 ***************************************************/
