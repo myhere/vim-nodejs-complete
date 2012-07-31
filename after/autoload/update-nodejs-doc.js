@@ -90,10 +90,14 @@ function extract2VimScript(body) {
   var json = JSON.parse(body),
       vimObject;
 
+  var _globals = sortModuleByName(mergeObject(getModInfo(json.globals), getModInfo(json.vars))),
+      _moduels = sortModuleByName(getModInfo(json.modules)),
+      _vars = (getVarInfo(json.vars)).concat(getVarInfo(json.globals)).sort(sortCompleteWord);
+
   vimObject = {
-    'globals': sortModuleByName(mergeObject(getModInfo(json.globals), getModInfo(json.vars))),
-    'modules': sortModuleByName(getModInfo(json.modules)),
-    'vars': getVarInfo(json.vars)
+    'globals': _globals,
+    'modules': _moduels,
+    'vars': _vars
   };
 
 
@@ -149,7 +153,7 @@ function getModInfo(mods) {
     }
 
     // sort items
-    list = list.sort(sortModuleByMethodName);
+    list = list.sort(sortCompleteWord);
 
 
     // module name
@@ -194,7 +198,7 @@ function getVarInfo(vars) {
   });
 
   // sort
-  ret = ret.sort(sortModuleByMethodName);
+  ret = ret.sort(sortCompleteWord);
 
   return ret;
 }
@@ -221,7 +225,7 @@ function sortModuleByName(mods) {
  * @param {Object}
  * @param {Object}
  */
-function sortModuleByMethodName(a, b) {
+function sortCompleteWord(a, b) {
   var a_w = a.word.toLowerCase(),
       b_w = b.word.toLowerCase();
 
