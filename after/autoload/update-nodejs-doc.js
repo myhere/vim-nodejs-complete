@@ -265,6 +265,7 @@ fs.write path.join('hello', 'world'), 'content here'));
 // global module test:
 var hello = 'world'; console.
 process.st
+require
 require("
 require('
 var a = require('t
