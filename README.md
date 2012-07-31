@@ -24,7 +24,10 @@ var fs = require('f
 fs.
 // then hit ctrl-x_ctrl-o
 
-process.e
+proc
+// then hit ctrl-x_ctrl-o
+
+process.ex
 // then hit ctrl-x_ctrl-o
 ```
 
