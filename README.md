@@ -33,6 +33,7 @@ process.ex
 
 ## Tip
 1. Close the method preview window
+
      `ctrl-w_ctrl-z` or `:pc`.
 
      If you want close it automatically, put the code(from [spf13-vim](https://github.com/spf13/spf13-vim/blob/3.0/.vimrc)) below in your `.vimrc` file.
@@ -43,6 +44,7 @@ process.ex
      ```
 
 2. About vim's complete
+
      Vim supports several kinds of completion, `:h ins-completion` for help.
 
 
