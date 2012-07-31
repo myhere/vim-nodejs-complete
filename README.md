@@ -42,7 +42,6 @@ process.ex
      au CursorMovedI,InsertLeave * if pumvisible() == 0|silent! pclose|endif
      ```
 
-
 2. About vim's complete
      Vim supports several kinds of completion, `:h ins-completion` for help.
 
