@@ -31,6 +31,7 @@ process.ex
 // then hit ctrl-x_ctrl-o
 ```
 
+
 ## Tip
 1. Close the method preview window
 
@@ -46,6 +47,14 @@ process.ex
 2. About vim's complete
 
      Vim supports several kinds of completion, `:h ins-completion` for help.
+
+3. Completion of module in `node_modules` will cache result of every `js` file
+
+     If you modified module in `node_modules` directory, use code below to clear the cache.
+
+     ```vim
+     :unlet b:npm_module_names
+     ```
 
 
 ## Feedback
