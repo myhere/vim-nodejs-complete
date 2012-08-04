@@ -13,10 +13,10 @@ function! nodejscomplete#CompleteJS(findstart, base)
     " complete context
     let line = getline('.')
     let b:nodecompl_context = line[0:start-1]
-    "Decho 'start: ' . start
+    Decho 'start: ' . start
     return start
   else
-    let nodeCompl = nodejscomplete#FindNodeComplete(a:base)
+    let nodeCompl = s:findNodeComplete(a:base)
     let jsCompl = javascriptcomplete#CompleteJS(a:findstart, a:base)
 
     return nodeCompl + jsCompl
@@ -25,13 +25,13 @@ endfunction
 
 
 " complete node's build-in module
-function! nodejscomplete#FindNodeComplete(base)
+function! s:findNodeComplete(base)
   " get complete context
   let context = b:nodecompl_context
   unlet b:nodecompl_context
 
-  "Decho 'context: ' . context
-  "Decho 'base: ' . a:base
+  Decho 'context: ' . context
+  Decho 'base: ' . a:base
 
   let ret = []
 
@@ -39,23 +39,23 @@ function! nodejscomplete#FindNodeComplete(base)
   let obj_name = matchstr(context, '\k\+\ze\.$')
 
   if (len(obj_name) == 0) " variable complete
-    let ret = nodejscomplete#GetVariableComplete(context, a:base)
+    let ret = s:getVariableComplete(context, a:base)
   else " module complete
-    "Decho 'obj_name: ' . obj_name
+    Decho 'obj_name: ' . obj_name
 
     " get variable declared line number
     let decl_line = search(obj_name . '\s*=\s*require\s*(.\{-})', 'bn')
-    "Decho 'decl_line: ' . decl_line
+    Decho 'decl_line: ' . decl_line
 
     if (decl_line == 0) 
       " maybe a global module
-      let ret = nodejscomplete#GetModuleComplete(obj_name, a:base, 'globals')
+      let ret = s:getModuleComplete(obj_name, a:base, 'globals')
     else
       " find the node module name
       let mod_name = matchstr(getline(decl_line), obj_name . '\s*=\s*require\s*(\s*\([''"]\)\zs.\{-}\ze\(\1\)\s*)')
 
       if exists('mod_name')
-        let ret = nodejscomplete#GetModuleComplete(mod_name, a:base, 'modules')
+        let ret = s:getModuleComplete(mod_name, a:base, 'modules')
       endif
     endif
   endif
@@ -64,12 +64,12 @@ function! nodejscomplete#FindNodeComplete(base)
 endfunction
 
 
-function! nodejscomplete#GetModuleComplete(mod_name, prop_name, type)
-  "Decho 'mod_name: ' . a:mod_name
-  "Decho 'prop_name: ' . a:prop_name
-  "Decho 'type: ' . a:type
+function! s:getModuleComplete(mod_name, prop_name, type)
+  Decho 'mod_name: ' . a:mod_name
+  Decho 'prop_name: ' . a:prop_name
+  Decho 'type: ' . a:type
 
-  call nodejscomplete#LoadNodeDocData()
+  call s:loadNodeDocData()
 
   let ret = []
   let mods = {}
@@ -90,21 +90,21 @@ function! nodejscomplete#GetModuleComplete(mod_name, prop_name, type)
     " filter properties with prop_name
     let ret = filter(copy(mod), 'v:val["word"] =~# "' . a:prop_name . '"')
   endif
-  "Decho string(ret)
+  Decho string(ret)
 
   return ret
 endfunction
 
 
-function! nodejscomplete#GetVariableComplete(context, var_name)
-  "Decho 'var_name: ' . a:var_name
+function! s:getVariableComplete(context, var_name)
+  Decho 'var_name: ' . a:var_name
 
   " complete require's arguments
   let matched = matchlist(a:context, 'require\s*(\s*\([''"]\)\=$')
   if (len(matched) > 0)
-    "Decho 'require: ' . string(matched)
+    Decho 'require: ' . string(matched)
 
-    let mod_names = nodejscomplete#GetModuleNames()
+    let mod_names = s:getModuleNames()
     if (len(matched[1]) == 0)     " complete -> require(
       call map(mod_names, '"''" . v:val . "'')"')
     elseif (len(a:var_name) == 0) " complete -> require('
@@ -123,7 +123,7 @@ function! nodejscomplete#GetVariableComplete(context, var_name)
     return vars
   endif
 
-  call nodejscomplete#LoadNodeDocData()
+  call s:loadNodeDocData()
 
   if (has_key(g:nodejs_complete_data, 'vars'))
     let vars = g:nodejs_complete_data.vars
@@ -135,32 +135,88 @@ function! nodejscomplete#GetVariableComplete(context, var_name)
 endfunction
 
 
-function! nodejscomplete#GetModuleNames()
-  call nodejscomplete#LoadNodeDocData()
+function! s:getModuleNames()
+  call s:loadNodeDocData()
 
   let mod_names = []
+
+  " build-in module name
   if (has_key(g:nodejs_complete_data, 'modules'))
     let mod_names = keys(g:nodejs_complete_data.modules)
   endif
 
+
+  " find module in 'module_dir' folder
+  if (!exists('b:npm_module_names'))
+    let current_dir = expand('%:p:h')
+
+    let b:npm_module_names = s:getNpmModuleNames(current_dir)
+  endif
+
+  let mod_names = mod_names + b:npm_module_names
+
   return sort(mod_names)
 endfunction
 
+function! s:getNpmModuleNames(current_dir)
+  " ensure platform coincidence
+  let base_dir = substitute(a:current_dir, '\', '/', 'g')
+  Decho 'base_dir: ' . base_dir
 
-function! nodejscomplete#LoadNodeDocData()
+  let ret = []
+
+  let parts = split(base_dir, '/', 1)
+  Decho 'parts: ' . string(parts)
+  let idx = 0
+  let len = len(parts)
+  let sub_parts = []
+  while idx < len
+    let sub_parts = add(sub_parts, parts[idx])
+    let module_dir = join(sub_parts, '/') . '/node_modules'
+    Decho 'directory: ' . module_dir
+
+    if (isdirectory(module_dir))
+      let files = s:fuzglob(module_dir . '/*')
+      for file in files
+        Decho 'node_modules: ' . file
+        if (isdirectory(file) || file =~? '\.json$\|\.js$')
+          let mod_name = matchstr(file, '[^/\\]\+$')
+          let ret = add(ret, mod_name)
+        endif
+      endfor
+    endif
+
+    let idx = idx + 1
+  endwhile
+
+  Decho 'npm modules: ' . string(ret)
+
+  return ret
+endfunction
+
+function! s:loadNodeDocData()
   " load node module data
   if (!exists('g:nodejs_complete_data'))
     " load data from external file
     let filename = s:nodejs_doc_file
-    "Decho 'filename: ' . filename
+    Decho 'filename: ' . filename
     if (filereadable(filename))
-      "Decho 'readable'
+      Decho 'readable'
       execute 'so ' . filename
-      "Decho string(g:nodejs_complete_data)
+      Decho string(g:nodejs_complete_data)
     else
-      "Decho 'not readable'
+      Decho 'not readable'
     endif
   endif
+endfunction
+
+" copied from FuzzyFinder/autoload/fuf.vim
+" returns list of paths.
+" An argument for glob() is normalized in order to avoid a bug on Windows.
+function! s:fuzglob(expr)
+  " Substitutes "\", because on Windows, "**\" doesn't include ".\",
+  " but "**/" include "./". I don't know why.
+  return split(glob(substitute(a:expr, '\', '/', 'g')), "\n")
 endfunction
 
 
