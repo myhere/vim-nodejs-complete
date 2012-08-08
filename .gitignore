@@ -1,5 +1,6 @@
 
 *.swp
 
+# debug files
 after/autoload/nodejs-doc-all.json
 after/autoload/nodejs-doc.vim.js
