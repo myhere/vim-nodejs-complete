@@ -1,7 +1,7 @@
 " Vim completion script
 " Language:	Javascript(node)
 " Maintainer:	Lin Zhang ( myhere.2009 AT gmail DOT com )
-" Last Change:	2012-7-31 14:14:02
+" Last Change:	2012-8-18 1:32:00
 
 " save current dir
 let s:nodejs_doc_file = expand('<sfile>:p:h') . '/nodejs-doc.vim'
@@ -143,8 +143,10 @@ function! s:getModuleInCurrentDir(context, var_name, matched)
   let mod_names = []
   let path = a:matched[2] . a:var_name
 
+  " typed as require('..
+  " complete as require('../
+  " cause the latter one is more common
   let compl_prefix = ''
-  " complete -> require('..
   if (path =~# '\.\.$')
     let compl_prefix = '/'
     let path = path . compl_prefix
@@ -153,18 +155,22 @@ function! s:getModuleInCurrentDir(context, var_name, matched)
   Decho 'path: ' . path
 
   let current_dir = expand('%:p:h')
-  let files = s:fuzglob(current_dir . '/' . path . '*')
+  let glob_path = current_dir . '/' . path . '*'
+  let files = s:fuzglob(glob_path)
+  Decho 'glob: ' . glob_path
+  Decho 'current dir files: ' . string(files)
   for file in files
-    if (isdirectory(file) || file =~? '\.json$\|\.js$') 
+    " not '.' and '..'
+    if ((isdirectory(file) ) || file =~? '\.json$\|\.js$') 
       let mod_file = file
-      " file is a directory
+      " directory
       if (file !~? '\.json$\|\.js$')
         let mod_file = mod_file . '/'
       endif
 
       " get complete word
       let mod_file = substitute(mod_file, '\', '/', 'g')
-      let start = strridx(mod_file, path) + len(path)
+      let start = len(glob_path) - 1 " substract character '*'
       let compl_infix = strpart(mod_file, start)
       Decho 'idx: ' . start
       Decho 'compl_infix: ' . compl_infix
@@ -176,6 +182,7 @@ function! s:getModuleInCurrentDir(context, var_name, matched)
         let mod_name = mod_name . a:matched[1] . ')'
       endif
 
+      Decho 'mod_name: ' . mod_name
       call add(mod_names, mod_name)
     endif
   endfor
@@ -227,8 +234,8 @@ function! s:getModuleNamesInNode_modulesFolder(current_dir)
 
     if (isdirectory(module_dir))
       let files = s:fuzglob(module_dir . '/*')
+      Decho 'node_module files: ' . string(files)
       for file in files
-        Decho 'node_modules: ' . file
         if (isdirectory(file) || file =~? '\.json$\|\.js$')
           let mod_name = matchstr(file, '[^/\\]\+$')
           let ret = add(ret, mod_name)
