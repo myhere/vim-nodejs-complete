@@ -18,7 +18,7 @@ Completion require `:filetype plugin on`, please make sure it's on.
 var fs = req
 // then hit ctrl-x_ctrl-o you'll get:
 var fs = require(
-// and then hit ctrl-x_ctrl-o again you'll get module name completiion
+// and then hit ctrl-x_ctrl-o again you'll get module name completion
 
 var fs = require('f
 // then hit ctrl-x_ctrl-o
