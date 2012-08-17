@@ -100,18 +100,23 @@ function! s:getVariableComplete(context, var_name)
   Decho 'var_name: ' . a:var_name
 
   " complete require's arguments
-  let matched = matchlist(a:context, 'require\s*(\s*\([''"]\)\=$')
+  let matched = matchlist(a:context, 'require\s*(\s*\%(\([''"]\)\(\.\{1,2}.*\)\=\)\=$')
   if (len(matched) > 0)
     Decho 'require: ' . string(matched)
 
-    let mod_names = s:getModuleNames()
-    if (len(matched[1]) == 0)     " complete -> require(
-      call map(mod_names, '"''" . v:val . "'')"')
-    elseif (len(a:var_name) == 0) " complete -> require('
-      call map(mod_names, 'v:val . "' . escape(matched[1], '"') . ')"')
-    else                          " complete -> require('ti
-      let mod_names = filter(mod_names, 'v:val =~# "^' . a:var_name . '"')
-      call map(mod_names, 'v:val . "' . escape(matched[1], '"') . ')"')
+    if (len(matched[2]) > 0)          " complete -> require('./
+      let mod_names = s:getModuleInCurrentDir(a:context, a:var_name, matched)
+    else
+      let mod_names = s:getModuleNames()
+
+      if (len(matched[1]) == 0)     " complete -> require(
+        call map(mod_names, '"''" . v:val . "'')"')
+      elseif (len(a:var_name) == 0) " complete -> require('
+        call map(mod_names, 'v:val . "' . escape(matched[1], '"') . ')"')
+      else                          " complete -> require('ti
+        let mod_names = filter(mod_names, 'v:val =~# "^' . a:var_name . '"')
+        call map(mod_names, 'v:val . "' . escape(matched[1], '"') . ')"')
+      endif
     endif
 
     return mod_names
@@ -134,6 +139,51 @@ function! s:getVariableComplete(context, var_name)
   return ret
 endfunction
 
+function! s:getModuleInCurrentDir(context, var_name, matched) 
+  let mod_names = []
+  let path = a:matched[2] . a:var_name
+
+  let compl_prefix = ''
+  " complete -> require('..
+  if (path =~# '\.\.$')
+    let compl_prefix = '/'
+    let path = path . compl_prefix
+  endif
+
+  Decho 'path: ' . path
+
+  let current_dir = expand('%:p:h')
+  let files = s:fuzglob(current_dir . '/' . path . '*')
+  for file in files
+    if (isdirectory(file) || file =~? '\.json$\|\.js$') 
+      let mod_file = file
+      " file is a directory
+      if (file !~? '\.json$\|\.js$')
+        let mod_file = mod_file . '/'
+      endif
+
+      " get complete word
+      let mod_file = substitute(mod_file, '\', '/', 'g')
+      let start = strridx(mod_file, path) + len(path)
+      let compl_infix = strpart(mod_file, start)
+      Decho 'idx: ' . start
+      Decho 'compl_infix: ' . compl_infix
+      Decho 'relative file: ' . mod_file
+
+      let mod_name = compl_prefix . a:var_name . compl_infix
+      " file module, not a directory
+      if (compl_infix !~# '/$')
+        let mod_name = mod_name . a:matched[1] . ')'
+      endif
+
+      call add(mod_names, mod_name)
+    endif
+  endfor
+
+  Decho 'relative path: ' . path
+
+  return mod_names
+endfunction
 
 function! s:getModuleNames()
   call s:loadNodeDocData()
@@ -150,7 +200,7 @@ function! s:getModuleNames()
   if (!exists('b:npm_module_names'))
     let current_dir = expand('%:p:h')
 
-    let b:npm_module_names = s:getNpmModuleNames(current_dir)
+    let b:npm_module_names = s:getModuleNamesInNode_modulesFolder(current_dir)
   endif
 
   let mod_names = mod_names + b:npm_module_names
@@ -158,7 +208,7 @@ function! s:getModuleNames()
   return sort(mod_names)
 endfunction
 
-function! s:getNpmModuleNames(current_dir)
+function! s:getModuleNamesInNode_modulesFolder(current_dir)
   " ensure platform coincidence
   let base_dir = substitute(a:current_dir, '\', '/', 'g')
   Decho 'base_dir: ' . base_dir

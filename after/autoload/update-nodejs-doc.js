@@ -260,6 +260,8 @@ function mergeObject() {
 var fs = req
 var http = require(
 var util = require('u
+var m1 = require('..
+var m2 = require('./
 
 
 // module methdo complete
