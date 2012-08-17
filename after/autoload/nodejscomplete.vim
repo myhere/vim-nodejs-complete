@@ -13,7 +13,7 @@ function! nodejscomplete#CompleteJS(findstart, base)
     " complete context
     let line = getline('.')
     let b:nodecompl_context = line[0:start-1]
-    Decho 'start: ' . start
+    "Decho 'start: ' . start
     return start
   else
     let nodeCompl = s:findNodeComplete(a:base)
@@ -30,8 +30,8 @@ function! s:findNodeComplete(base)
   let context = b:nodecompl_context
   unlet b:nodecompl_context
 
-  Decho 'context: ' . context
-  Decho 'base: ' . a:base
+  "Decho 'context: ' . context
+  "Decho 'base: ' . a:base
 
   let ret = []
 
@@ -41,11 +41,11 @@ function! s:findNodeComplete(base)
   if (len(obj_name) == 0) " variable complete
     let ret = s:getVariableComplete(context, a:base)
   else " module complete
-    Decho 'obj_name: ' . obj_name
+    "Decho 'obj_name: ' . obj_name
 
     " get variable declared line number
     let decl_line = search(obj_name . '\s*=\s*require\s*(.\{-})', 'bn')
-    Decho 'decl_line: ' . decl_line
+    "Decho 'decl_line: ' . decl_line
 
     if (decl_line == 0) 
       " maybe a global module
@@ -65,9 +65,9 @@ endfunction
 
 
 function! s:getModuleComplete(mod_name, prop_name, type)
-  Decho 'mod_name: ' . a:mod_name
-  Decho 'prop_name: ' . a:prop_name
-  Decho 'type: ' . a:type
+  "Decho 'mod_name: ' . a:mod_name
+  "Decho 'prop_name: ' . a:prop_name
+  "Decho 'type: ' . a:type
 
   call s:loadNodeDocData()
 
@@ -90,19 +90,19 @@ function! s:getModuleComplete(mod_name, prop_name, type)
     " filter properties with prop_name
     let ret = filter(copy(mod), 'v:val["word"] =~# "' . a:prop_name . '"')
   endif
-  Decho string(ret)
+  "Decho string(ret)
 
   return ret
 endfunction
 
 
 function! s:getVariableComplete(context, var_name)
-  Decho 'var_name: ' . a:var_name
+  "Decho 'var_name: ' . a:var_name
 
   " complete require's arguments
   let matched = matchlist(a:context, 'require\s*(\s*\%(\([''"]\)\(\.\{1,2}.*\)\=\)\=$')
   if (len(matched) > 0)
-    Decho 'require: ' . string(matched)
+    "Decho 'require: ' . string(matched)
 
     if (len(matched[2]) > 0)          " complete -> require('./
       let mod_names = s:getModuleInCurrentDir(a:context, a:var_name, matched)
@@ -152,13 +152,13 @@ function! s:getModuleInCurrentDir(context, var_name, matched)
     let path = path . compl_prefix
   endif
 
-  Decho 'path: ' . path
+  "Decho 'path: ' . path
 
   let current_dir = expand('%:p:h')
   let glob_path = current_dir . '/' . path . '*'
   let files = s:fuzglob(glob_path)
-  Decho 'glob: ' . glob_path
-  Decho 'current dir files: ' . string(files)
+  "Decho 'glob: ' . glob_path
+  "Decho 'current dir files: ' . string(files)
   for file in files
     " not '.' and '..'
     if ((isdirectory(file) ) || file =~? '\.json$\|\.js$') 
@@ -172,9 +172,9 @@ function! s:getModuleInCurrentDir(context, var_name, matched)
       let mod_file = substitute(mod_file, '\', '/', 'g')
       let start = len(glob_path) - 1 " substract character '*'
       let compl_infix = strpart(mod_file, start)
-      Decho 'idx: ' . start
-      Decho 'compl_infix: ' . compl_infix
-      Decho 'relative file: ' . mod_file
+      "Decho 'idx: ' . start
+      "Decho 'compl_infix: ' . compl_infix
+      "Decho 'relative file: ' . mod_file
 
       let mod_name = compl_prefix . a:var_name . compl_infix
       " file module, not a directory
@@ -182,12 +182,12 @@ function! s:getModuleInCurrentDir(context, var_name, matched)
         let mod_name = mod_name . a:matched[1] . ')'
       endif
 
-      Decho 'mod_name: ' . mod_name
+      "Decho 'mod_name: ' . mod_name
       call add(mod_names, mod_name)
     endif
   endfor
 
-  Decho 'relative path: ' . path
+  "Decho 'relative path: ' . path
 
   return mod_names
 endfunction
@@ -218,23 +218,23 @@ endfunction
 function! s:getModuleNamesInNode_modulesFolder(current_dir)
   " ensure platform coincidence
   let base_dir = substitute(a:current_dir, '\', '/', 'g')
-  Decho 'base_dir: ' . base_dir
+  "Decho 'base_dir: ' . base_dir
 
   let ret = []
 
   let parts = split(base_dir, '/', 1)
-  Decho 'parts: ' . string(parts)
+  "Decho 'parts: ' . string(parts)
   let idx = 0
   let len = len(parts)
   let sub_parts = []
   while idx < len
     let sub_parts = add(sub_parts, parts[idx])
     let module_dir = join(sub_parts, '/') . '/node_modules'
-    Decho 'directory: ' . module_dir
+    "Decho 'directory: ' . module_dir
 
     if (isdirectory(module_dir))
       let files = s:fuzglob(module_dir . '/*')
-      Decho 'node_module files: ' . string(files)
+      "Decho 'node_module files: ' . string(files)
       for file in files
         if (isdirectory(file) || file =~? '\.json$\|\.js$')
           let mod_name = matchstr(file, '[^/\\]\+$')
@@ -246,7 +246,7 @@ function! s:getModuleNamesInNode_modulesFolder(current_dir)
     let idx = idx + 1
   endwhile
 
-  Decho 'npm modules: ' . string(ret)
+  "Decho 'npm modules: ' . string(ret)
 
   return ret
 endfunction
@@ -256,13 +256,13 @@ function! s:loadNodeDocData()
   if (!exists('g:nodejs_complete_data'))
     " load data from external file
     let filename = s:nodejs_doc_file
-    Decho 'filename: ' . filename
+    "Decho 'filename: ' . filename
     if (filereadable(filename))
-      Decho 'readable'
+      "Decho 'readable'
       execute 'so ' . filename
-      Decho string(g:nodejs_complete_data)
+      "Decho string(g:nodejs_complete_data)
     else
-      Decho 'not readable'
+      "Decho 'not readable'
     endif
   endif
 endfunction
