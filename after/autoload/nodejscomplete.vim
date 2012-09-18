@@ -8,7 +8,11 @@ let s:nodejs_doc_file = expand('<sfile>:p:h') . '/nodejs-doc.vim'
 
 function! nodejscomplete#CompleteJS(findstart, base)
   if a:findstart
-    let start = javascriptcomplete#CompleteJS(a:findstart, a:base)
+    if exists('g:node_usejscomplete') && g:node_usejscomplete
+      let start = jscomplete#CompleteJS(a:findstart, a:base)
+    else
+      let start = javascriptcomplete#CompleteJS(a:findstart, a:base)
+    endif
 
     " complete context
     let line = getline('.')
@@ -17,7 +21,11 @@ function! nodejscomplete#CompleteJS(findstart, base)
     return start
   else
     let nodeCompl = s:findNodeComplete(a:base)
-    let jsCompl = javascriptcomplete#CompleteJS(a:findstart, a:base)
+    if exists('g:node_usejscomplete') && g:node_usejscomplete
+      let jsCompl = jscomplete#CompleteJS(a:findstart, a:base)
+    else
+      let jsCompl = javascriptcomplete#CompleteJS(a:findstart, a:base)
+    endif
 
     return nodeCompl + jsCompl
   endif
