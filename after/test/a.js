@@ -9,7 +9,7 @@ fs["
 
 
 abc
-  abc
+asdfasdf abc
 
 
 abc.def.getDate(
@@ -17,3 +17,6 @@ abc.def.getDate(
 ''+fs.
 
 fs .  a
+
+
+

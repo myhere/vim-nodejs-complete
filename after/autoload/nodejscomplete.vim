@@ -25,41 +25,61 @@ function! nodejscomplete#CompleteJS(findstart, base)
     endif
     return start
   else
-    let nodeCompl = s:getNodeComplete(a:base, b:nodecompl_context)
+    let result = s:getNodeComplete(a:base, b:nodecompl_context)
     unlet b:nodecompl_context
-    if exists('g:node_usejscomplete') && g:node_usejscomplete && 0
-      let jsCompl = jscomplete#CompleteJS(a:findstart, a:base)
-    else
-      let jsCompl = javascriptcomplete#CompleteJS(a:findstart, a:base)
-    endif
 
-    return nodeCompl + jsCompl
+    if result.continue
+      if exists('g:node_usejscomplete') && g:node_usejscomplete && 0
+        let jsCompl = jscomplete#CompleteJS(a:findstart, a:base)
+      else
+        let jsCompl = javascriptcomplete#CompleteJS(a:findstart, a:base)
+      endif
+
+      return result.complete + jsCompl
+    else
+      return result.complete
+    endif
   endif
 endfunction
 
 
 " get complete
 function! s:getNodeComplete(base, context)
-  let result = {}
-
   Decho 'base: ' . a:base
   Decho 'context: ' . a:context
 
-
   " TODO: 排除 module.property.h 情况
-  let obj_reg = '\(' . s:js_keyword_reg . '\)\s*\(\.\|\[["'']\?\)\s*$'
-  Decho obj_reg
-  let matched = matchlist(a:context, obj_reg)
+  let mod_reg = '\(' . s:js_keyword_reg . '\)\s*\(\.\|\[["'']\?\)\s*$'
+  let matched = matchlist(a:context, mod_reg)
   " 模块属性补全
   if len(matched) > 0
     Decho string(matched)
-    let obj_name = matched[1]
+    let var_name = matched[1]
+    let operator = matched[2]
 
+    let mod_name = s:getModuleName(var_name)
+    if len(mod_name) > 0
+      let compl_list = s:getModuleComplete(mod_name, a:base, operator)
+    else
+      let compl_list = []
+    endif
+    let ret = {
+      \ 'complete': compl_list
+      \ }
+    if len(compl_list) == 0
+      let ret.continue = 1
+    else
+      let ret.continue = 0
+    endif
   " 全局补全
-  elseif a:base == '' && a:context == ''
-
+  else
+    let ret = {
+      \ 'continue': 1,
+      \ 'complete': s:getVariableComplete(a:context, a:base)
+      \ }
   endif
 
+  return ret
 
   " get complete context
   " let context = a:nodecompl_context
@@ -91,18 +111,37 @@ function! s:getNodeComplete(base, context)
   "   endif
   " endif
 
-  return []
+  " return []
 endfunction
 
 
 " require 创建
 " new  创建
 " 赋值
-function! s:getObjectComplete(obj_name)
+function! s:getModuleName(var_name)
+  let decl_prefix_reg = '\<' . var_name . '\s*=\s*'
+  let decl_posi = searchpairpos(decl_prefix_reg, 'bW')
+
+  " var_name = require
+  if
+
+  " var_name = new Fn()
+  elseif
+
+  " var_name = var_name_another
+  else
+
+  endif
+
+  return 'fs'
 endfunction
 
 
+" only complete nodejs's module info
 function! s:getModuleComplete(mod_name, prop_name, type)
+  return []
+
+
   Decho 'mod_name: ' . a:mod_name
   Decho 'prop_name: ' . a:prop_name
   Decho 'type: ' . a:type
