@@ -120,10 +120,24 @@ endfunction
 " 赋值
 function! s:getModuleName(var_name)
   let decl_prefix_reg = '\<' . var_name . '\s*=\s*'
-  let decl_posi = searchpairpos(decl_prefix_reg, 'bW')
+  " search backward, move the cursor, not wrap
+  let decl_posi = searchpos(decl_prefix_reg, 'bW')
+
+  " cann't find declaration, maybe a gloabl object like: console, process
+  if decl_posi[0] == 0
+    return a:var_name
+  endif
+
+  " make sure it's not in comments...
+  if !s:isDeclaration(decl_posi)
+    return s:getModuleName(a:var_name)
+  endif
+
+  let line = line('.')
+  let rightContext = matchstr(line, decl_prefix_reg . '\zs[^\n]*\ze')
 
   " var_name = require
-  if
+  if 
 
   " var_name = new Fn()
   elseif
@@ -134,6 +148,16 @@ function! s:getModuleName(var_name)
   endif
 
   return 'fs'
+endfunction
+
+function! s:isDeclaration(posi)
+  " syntaxName @see: $VIMRUNTIME/syntax/javascript.vim
+  let syntaxName = synIDattr(synID(posi[0], posi[1], 0), 'name')
+  if syntaxName =~ '^javaScript\%(Comment\|LineComment\|String\|RegexpString\)'
+    return 0
+  else
+    return 1
+  endif
 endfunction
 
 
