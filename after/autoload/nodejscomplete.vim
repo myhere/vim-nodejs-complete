@@ -122,9 +122,14 @@ function! s:getModuleName(var_name)
   " var_name assignment statement operand
   " NOTICE:  can't change the List order, because we need the searchpos() return sub-pattern match number
   let assign_operand_regs = [
-    \ 'require\_s*([^)]\+)',
-    \ 'new\_s' . s:js_varname_reg,
-    \ s:js_varname_reg,
+    \   'require\_s*(\_.\{1,})',
+    \   'new\_s' . s:js_varname_reg,
+    \   s:js_varname_reg,
+    \]
+  let assign_operand_extract_regs = [
+    \   'require\_s*(\_s*\([''"]\)\zs[^)]\+\ze\(\1\)\_s*)',
+    \   'new\_s' . s:js_varname_reg,
+    \   s:js_varname_reg,
     \]
 
   let operand_reg = '\%(\(' . join(assign_operand_regs, '\)\|\(') . '\)\)'
@@ -147,18 +152,32 @@ function! s:getModuleName(var_name)
   " find the operand
   let line = getline(line_num)
   let stmt = line[col_num-1:]
-  Decho 'declarePosition: ' . line_num . ':' . col_num . ';idx:' . assign_operand_idx
 
+  let assign_operand_idx -= 2
+  let mod_name = ''
   " a = require()
-  if assign_operand_idx == 2
-
+  if assign_operand_idx == 0
+    " get enough characters
+    while 1
+      let matched = matchstr(stmt, assign_operand_extract_regs[assign_operand_idx])
+      Decho 'stmt: ' . stmt
+      if len(matched)
+        let mod_name = matched
+        break
+      else
+        let line_num += 1
+        let stmt .= getline(line_num)
+      endif
+    endwhile
   " a = new A
-  elseif assign_operand_idx == 3
+  elseif assign_operand_idx == 1
 
   " a = a
   else
 
   endif
+
+  Decho 'mod_name: ' .mod_name
 
   return 'fs'
 endfunction

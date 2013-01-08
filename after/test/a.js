@@ -23,7 +23,8 @@ function() {
 
 
 var a = {hello: 'world'},
-    b = new A;
+    b = require( 'assert');
 
 
 b.
+
