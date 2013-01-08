@@ -5,7 +5,7 @@
 
 " save current dir
 let s:nodejs_doc_file = expand('<sfile>:p:h') . '/nodejs-doc.vim'
-let s:js_keyword_reg = '[$a-zA-Z_][$a-zA-Z0-9_]*'
+let s:js_varname_reg = '[$a-zA-Z_][$a-zA-Z0-9_]*'
 
 function! nodejscomplete#CompleteJS(findstart, base)
   if a:findstart
@@ -49,7 +49,7 @@ function! s:getNodeComplete(base, context)
   Decho 'context: ' . a:context
 
   " TODO: 排除 module.property.h 情况
-  let mod_reg = '\(' . s:js_keyword_reg . '\)\s*\(\.\|\[["'']\?\)\s*$'
+  let mod_reg = '\(' . s:js_varname_reg . '\)\_s*\(\.\|\[["'']\?\)\_s*$'
   let matched = matchlist(a:context, mod_reg)
   " 模块属性补全
   if len(matched) > 0
@@ -119,30 +119,43 @@ endfunction
 " new  创建
 " 赋值
 function! s:getModuleName(var_name)
-  let decl_prefix_reg = '\<' . var_name . '\s*=\s*'
-  " search backward, move the cursor, not wrap
-  let decl_posi = searchpos(decl_prefix_reg, 'bW')
+  " var_name assignment statement operand
+  " NOTICE:  can't change the List order, because we need the searchpos() return sub-pattern match number
+  let assign_operand_regs = [
+    \ 'require\_s*([^)]\+)',
+    \ 'new\_s' . s:js_varname_reg,
+    \ s:js_varname_reg,
+    \]
+
+  let operand_reg = '\%(\(' . join(assign_operand_regs, '\)\|\(') . '\)\)'
+  let decl_stmt_reg = '\<' . a:var_name . '\_s*=\_s*' . operand_reg
+  " search backward, move the cursor, don't wrap, also return which submatch is found
+  let [line_num, col_num, assign_operand_idx] = searchpos(decl_stmt_reg, 'bWp')
+  Decho 'declare_reg: ' . decl_stmt_reg
+  Decho 'declare_posi: ' . line_num . ':' . col_num . '; idx: ' . assign_operand_idx
 
   " cann't find declaration, maybe a gloabl object like: console, process
-  if decl_posi[0] == 0
+  if line_num == 0
     return a:var_name
   endif
 
   " make sure it's not in comments...
-  if !s:isDeclaration(decl_posi)
+  if !s:isDeclaration(line_num, col_num)
     return s:getModuleName(a:var_name)
   endif
 
-  let line = line('.')
-  let rightContext = matchstr(line, decl_prefix_reg . '\zs[^\n]*\ze')
+  " find the operand
+  let line = getline(line_num)
+  let stmt = line[col_num-1:]
+  Decho 'declarePosition: ' . line_num . ':' . col_num . ';idx:' . assign_operand_idx
 
-  " var_name = require
-  if 
+  " a = require()
+  if assign_operand_idx == 2
 
-  " var_name = new Fn()
-  elseif
+  " a = new A
+  elseif assign_operand_idx == 3
 
-  " var_name = var_name_another
+  " a = a
   else
 
   endif
@@ -150,9 +163,10 @@ function! s:getModuleName(var_name)
   return 'fs'
 endfunction
 
-function! s:isDeclaration(posi)
+
+function! s:isDeclaration(line_num, col_num)
   " syntaxName @see: $VIMRUNTIME/syntax/javascript.vim
-  let syntaxName = synIDattr(synID(posi[0], posi[1], 0), 'name')
+  let syntaxName = synIDattr(synID(a:line_num, a:col_num, 0), 'name')
   if syntaxName =~ '^javaScript\%(Comment\|LineComment\|String\|RegexpString\)'
     return 0
   else

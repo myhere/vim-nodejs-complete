@@ -22,13 +22,8 @@ function() {
 }
 
 
-// TODO
+var a = {hello: 'world'},
+    b = new A;
 
 
-let synId =synID(1, 6, 0)
-put=synIDattr(synId, 'name')
-put=synIDattr(synIDtrans(synId), 'name')
-
-
-
-var a = b; a.fs
+b.
