@@ -26,6 +26,7 @@ function! nodejscomplete#CompleteJS(findstart, base)
     return start
   else
     let result = s:getNodeComplete(a:base, b:nodecompl_context)
+    Decho 'nodecomplete: ' . string(result)
     unlet b:nodecompl_context
 
     if result.continue
@@ -53,11 +54,12 @@ function! s:getNodeComplete(base, context)
   let matched = matchlist(a:context, mod_reg)
   " 模块属性补全
   if len(matched) > 0
-    Decho string(matched)
     let var_name = matched[1]
     let operator = matched[2]
+    Decho 'var_name: ' . var_name . ' ; operator: ' . operator
 
     let mod_name = s:getModuleName(var_name)
+    Decho 'mod_name: ' . mod_name . ' ; compl_prefix: ' . a:base
     if len(mod_name) > 0
       let compl_list = s:getModuleComplete(mod_name, a:base, operator)
     else
@@ -114,74 +116,79 @@ function! s:getNodeComplete(base, context)
   " return []
 endfunction
 
-
-" require 创建
-" new  创建
-" 赋值
 function! s:getModuleName(var_name)
   " var_name assignment statement operand
   " NOTICE:  can't change the List order, because we need the searchpos() return sub-pattern match number
-  let assign_operand_regs = [
-    \   'require\_s*(\_.\{1,})',
-    \   'new\_s' . s:js_varname_reg,
-    \   s:js_varname_reg,
+  " require stmt
+  " new stmt
+  " assign stmt
+  let match_regs = [
+    \   'require\_s*(\_s*[^)]\+\_s*)',
+    \   'new\_s' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . ' \)\?',
+    \   s:js_varname_reg . '\_s*\%([,;]\)'
     \]
-  let assign_operand_extract_regs = [
-    \   'require\_s*(\_s*\([''"]\)\zs[^)]\+\ze\(\1\)\_s*)',
-    \   'new\_s' . s:js_varname_reg,
-    \   s:js_varname_reg,
+  let extract_regs = [
+    \   'require\_s*(\_s*\zs[^)]\+\ze\_s*)',
+    \   '\zsnew\_s' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . ' \)\?\ze',
+    \   '\zs' . s:js_varname_reg . '\ze\_s*\%([,;]\)'
     \]
 
-  let operand_reg = '\%(\(' . join(assign_operand_regs, '\)\|\(') . '\)\)'
-  let decl_stmt_reg = '\<' . a:var_name . '\_s*=\_s*' . operand_reg
+  let decl_stmt_prefix_reg = '\<' . a:var_name . '\_s*=\_s*'
+  let decl_stmt_suffix_reg = '\%(\(' . join(match_regs, '\)\|\(') . '\)\)'
+  let decl_stmt_reg = decl_stmt_prefix_reg . decl_stmt_suffix_reg
   " search backward, move the cursor, don't wrap, also return which submatch is found
-  let [line_num, col_num, assign_operand_idx] = searchpos(decl_stmt_reg, 'bWp')
-  Decho 'declare_reg: ' . decl_stmt_reg
-  Decho 'declare_posi: ' . line_num . ':' . col_num . '; idx: ' . assign_operand_idx
+  let [line_num, col_num, reg_idx] = searchpos(decl_stmt_reg, 'bWp')
 
   " cann't find declaration, maybe a gloabl object like: console, process
   if line_num == 0
+    Decho 'maybe global'
     return a:var_name
-  endif
-
-  " make sure it's not in comments...
-  if !s:isDeclaration(line_num, col_num)
-    return s:getModuleName(a:var_name)
-  endif
-
-  " find the operand
-  let line = getline(line_num)
-  let stmt = line[col_num-1:]
-
-  let assign_operand_idx -= 2
-  let mod_name = ''
-  " a = require()
-  if assign_operand_idx == 0
-    " get enough characters
-    while 1
-      let matched = matchstr(stmt, assign_operand_extract_regs[assign_operand_idx])
-      Decho 'stmt: ' . stmt
-      if len(matched)
-        let mod_name = matched
-        break
-      else
-        let line_num += 1
-        let stmt .= getline(line_num)
-      endif
-    endwhile
-  " a = new A
-  elseif assign_operand_idx == 1
-
-  " a = a
   else
+    let reg_idx -= 2
+    Decho 'declare_reg: ' . decl_stmt_reg
+    Decho 'declare_posi: ' . line_num . ':' . col_num
 
+    " make sure it's not in comments...
+    if !s:isDeclaration(line_num, col_num)
+      return s:getModuleName(a:var_name)
+    endif
+
+    let matched = s:getRightHandInfo(line_num, col_num, decl_stmt_prefix_reg . extract_regs[reg_idx])
+    Decho 'rigth_hand_info: ' . string(matched) . ' idx: ' . reg_idx
+    " require
+    if reg_idx == 0
+      return matchstr(matched, s:js_varname_reg)
+    " new
+    elseif reg_idx == 1
+      " TODO: finish it
+      return ''
+    " assign
+    elseif reg_idx == 2
+      return s:getModuleName(matched)
+    endif
   endif
-
-  Decho 'mod_name: ' .mod_name
-
-  return 'fs'
 endfunction
 
+function! s:getRightHandInfo(line_num, col_num, extract_reg) 
+  let line_num = a:line_num
+  let begin_line = getline(line_num)
+  let stmt = begin_line[a:col_num - 1 :]
+
+  " already found with searchpos(), so only break when matched
+  while 1
+    let matched = matchstr(stmt, a:extract_reg)
+    Decho 'stmt: ' . stmt
+    if len(matched)
+      let mod_name = matched
+      break
+    else
+      let line_num += 1
+      let stmt .= getline(line_num)
+    endif
+  endwhile
+
+  return matched
+endfunction
 
 function! s:isDeclaration(line_num, col_num)
   " syntaxName @see: $VIMRUNTIME/syntax/javascript.vim
@@ -193,40 +200,40 @@ function! s:isDeclaration(line_num, col_num)
   endif
 endfunction
 
-
 " only complete nodejs's module info
 function! s:getModuleComplete(mod_name, prop_name, type)
-  return []
-
-
-  Decho 'mod_name: ' . a:mod_name
-  Decho 'prop_name: ' . a:prop_name
-  Decho 'type: ' . a:type
-
   call s:loadNodeDocData()
 
-  let ret = []
-  let mods = {}
-  let mod = []
 
-  if (has_key(g:nodejs_complete_data, a:type))
-    let mods = g:nodejs_complete_data[a:type]
-  endif
+  return []
+  " Decho 'mod_name: ' . a:mod_name
+  " Decho 'prop_name: ' . a:prop_name
+  " Decho 'type: ' . a:type
 
-  if (has_key(mods, a:mod_name))
-    let mod = mods[a:mod_name]
-  endif
+  " call s:loadNodeDocData()
 
-  " no prop_name suplied
-  if (len(a:prop_name) == 0)
-    let ret = mod
-  else
-    " filter properties with prop_name
-    let ret = filter(copy(mod), 'v:val["word"] =~# "' . a:prop_name . '"')
-  endif
-  Decho string(ret)
+  " let ret = []
+  " let mods = {}
+  " let mod = []
 
-  return ret
+  " if (has_key(g:nodejs_complete_data, a:type))
+  "   let mods = g:nodejs_complete_data[a:type]
+  " endif
+
+  " if (has_key(mods, a:mod_name))
+  "   let mod = mods[a:mod_name]
+  " endif
+
+  " " no prop_name suplied
+  " if (len(a:prop_name) == 0)
+  "   let ret = mod
+  " else
+  "   " filter properties with prop_name
+  "   let ret = filter(copy(mod), 'v:val["word"] =~# "' . a:prop_name . '"')
+  " endif
+  " Decho string(ret)
+
+  " return ret
 endfunction
 
 
@@ -392,11 +399,10 @@ function! s:loadNodeDocData()
     let filename = s:nodejs_doc_file
     Decho 'filename: ' . filename
     if (filereadable(filename))
-      Decho 'readable'
       execute 'so ' . filename
       Decho string(g:nodejs_complete_data)
     else
-      Decho 'not readable'
+      Decho 'not readable: ' . filename
     endif
   endif
 endfunction
