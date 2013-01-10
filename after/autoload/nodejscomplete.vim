@@ -201,39 +201,44 @@ function! s:isDeclaration(line_num, col_num)
 endfunction
 
 " only complete nodejs's module info
-function! s:getModuleComplete(mod_name, prop_name, type)
+function! s:getModuleComplete(mod_name, prop_name, operator)
   call s:loadNodeDocData()
 
+  let ret = []
+  let mods = {}
+  let mod = []
 
-  return []
-  " Decho 'mod_name: ' . a:mod_name
-  " Decho 'prop_name: ' . a:prop_name
-  " Decho 'type: ' . a:type
+  " complete node's builtin modules and global modules
+  for type in ['modules', 'globals']
+    if (has_key(g:nodejs_complete_data, type))
+      let mods = g:nodejs_complete_data[type]
+      break
+    endif
+  endfor
 
-  " call s:loadNodeDocData()
+  if (has_key(mods, a:mod_name))
+    let mod = mods[a:mod_name]
+  endif
 
-  " let ret = []
-  " let mods = {}
-  " let mod = []
+  " no prop_name suplied
+  if (len(a:prop_name) == 0)
+    let ret = mod
+  else
+    let [exact_ret, fuzzy_ret] = [[], []]
+    " filter properties with prop_name
+    let ret = filter(copy(mod), 'v:val["word"] =~ "' . a:prop_name . '"')
+    for item in ret
+      if item.word =~ '^' . a:prop_name
+        call add(exact_ret, item)
+      else
+        call add(fuzzy_ret, item)
+      endif
+    endfor
 
-  " if (has_key(g:nodejs_complete_data, a:type))
-  "   let mods = g:nodejs_complete_data[a:type]
-  " endif
+    let ret = exact_ret + fuzzy_ret
+  endif
 
-  " if (has_key(mods, a:mod_name))
-  "   let mod = mods[a:mod_name]
-  " endif
-
-  " " no prop_name suplied
-  " if (len(a:prop_name) == 0)
-  "   let ret = mod
-  " else
-  "   " filter properties with prop_name
-  "   let ret = filter(copy(mod), 'v:val["word"] =~# "' . a:prop_name . '"')
-  " endif
-  " Decho string(ret)
-
-  " return ret
+  return ret
 endfunction
 
 
