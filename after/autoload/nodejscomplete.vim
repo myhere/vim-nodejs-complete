@@ -5,7 +5,13 @@
 
 " save current dir
 let s:nodejs_doc_file = expand('<sfile>:p:h') . '/nodejs-doc.vim'
+
 let s:js_varname_reg = '[$a-zA-Z_][$a-zA-Z0-9_]*'
+
+" settings
+if !exists('g:nodejs_complete_max_compl_len')
+  let g:nodejs_complete_max_compl_len = 15
+endif
 
 function! nodejscomplete#CompleteJS(findstart, base)"{{{
   if a:findstart
@@ -29,16 +35,22 @@ function! nodejscomplete#CompleteJS(findstart, base)"{{{
     Decho 'nodecomplete: ' . string(result)
     unlet b:nodecompl_context
 
+    let nodejs_compl = result.complete
+    " limit nodejs complete count
+    if g:nodejs_complete_max_compl_len != 0
+      let nodejs_compl = nodejs_compl[0 : g:nodejs_complete_max_compl_len - 1]
+    endif
+
     if result.continue
       if exists('g:node_usejscomplete') && g:node_usejscomplete && 0
-        let jsCompl = jscomplete#CompleteJS(a:findstart, a:base)
+        let js_compl = jscomplete#CompleteJS(a:findstart, a:base)
       else
-        let jsCompl = javascriptcomplete#CompleteJS(a:findstart, a:base)
+        let js_compl = javascriptcomplete#CompleteJS(a:findstart, a:base)
       endif
 
-      return result.complete + jsCompl
+      return nodejs_compl + js_compl
     else
-      return result.complete
+      return nodejs_compl
     endif
   endif
 endfunction"}}}
@@ -83,38 +95,6 @@ function! s:getNodeComplete(base, context)"{{{
   endif
 
   return ret
-
-  " get complete context
-  " let context = a:nodecompl_context
-
-  " let ret = []
-
-  " " get object name
-  " let obj_name = matchstr(context, '\k\+\ze\.$')
-
-  " if (len(obj_name) == 0) " variable complete
-  "   let ret = s:getVariableComplete(context, a:base)
-  " else " module complete
-  "   Decho 'obj_name: ' . obj_name
-
-  "   " get variable declared line number
-  "   let decl_line = search(obj_name . '\s*=\s*require\s*(.\{-})', 'bn')
-  "   Decho 'decl_line: ' . decl_line
-
-  "   if (decl_line == 0) 
-  "     " maybe a global module
-  "     let ret = s:getModuleComplete(obj_name, a:base, 'globals')
-  "   else
-  "     " find the node module name
-  "     let mod_name = matchstr(getline(decl_line), obj_name . '\s*=\s*require\s*(\s*\([''"]\)\zs.\{-}\ze\(\1\)\s*)')
-
-  "     if exists('mod_name')
-  "       let ret = s:getModuleComplete(mod_name, a:base, 'modules')
-  "     endif
-  "   endif
-  " endif
-
-  " return [] 
 endfunction"}}}
 
 function! s:getModuleName(var_name)"{{{
@@ -220,17 +200,7 @@ function! s:getModuleComplete(mod_name, prop_name, operator)"{{{
     if (len(a:prop_name) == 0)
       let ret = mod
     else
-      let [exact_ret, fuzzy_ret] = [[], []]
-      " filter properties with prop_name
-      let ret = filter(mod, 'v:val["word"] =~ "' . a:prop_name . '"')
-      for item in ret
-        if item.word =~ '^' . a:prop_name
-          call add(exact_ret, item)
-        else
-          call add(fuzzy_ret, item)
-        endif
-      endfor
-      let ret = exact_ret + fuzzy_ret
+      let ret = s:smartFilter(mod, 'v:val["word"]', a:prop_name)
     endif
 
     let [prefix, suffix] = ['', '']
@@ -245,12 +215,10 @@ function! s:getModuleComplete(mod_name, prop_name, operator)"{{{
     endif
 
     for item in ret
-      if item.kind == 'f'
-        let item.word = prefix . item.word . suffix . '('
-      else
-        let item.word = prefix . item.word . suffix
-      endif
+      let item.word = prefix . item.word . suffix
     endfor
+    call s:addFunctionParen(ret)
+
   else
     let ret = []
   endif
@@ -264,7 +232,7 @@ function! s:getVariableComplete(context, var_name)"{{{
   " complete require's arguments
   let matched = matchlist(a:context, 'require\s*(\s*\%(\([''"]\)\(\.\{1,2}.*\)\=\)\=$')
   if (len(matched) > 0)
-    Decho 'require: ' . string(matched)
+    Decho 'require complete: ' . string(matched)
 
     if (len(matched[2]) > 0)          " complete -> require('./
       let mod_names = s:getModuleInCurrentDir(a:context, a:var_name, matched)
@@ -293,10 +261,12 @@ function! s:getVariableComplete(context, var_name)"{{{
   call s:loadNodeDocData()
 
   if (has_key(g:nodejs_complete_data, 'vars'))
-    let vars = g:nodejs_complete_data.vars
+    let vars = deepcopy(g:nodejs_complete_data.vars)
   endif
 
-  let ret = filter(copy(vars), 'v:val["word"] =~# "^' . a:var_name . '"')
+  let ret = s:smartFilter(vars, 'v:val["word"]', a:var_name)
+
+  call s:addFunctionParen(ret)
 
   return ret
 endfunction"}}}
@@ -411,6 +381,33 @@ function! s:getModuleNamesInNode_modulesFolder(current_dir)"{{{
   Decho 'npm modules: ' . string(ret)
 
   return ret
+endfunction"}}}
+
+" filter items with exact match at first
+function! s:smartFilter(items, str, keyword)"{{{
+  let items = filter(a:items, a:str . ' =~ "' . a:keyword . '"')
+  let [exact_ret, fuzzy_ret] = [[], []]
+  for item in items
+    if item.word =~ '^' . a:keyword
+      call add(exact_ret, item)
+    else
+      call add(fuzzy_ret, item)
+    endif
+  endfor
+
+  return exact_ret + fuzzy_ret
+endfunction"}}}
+
+function! s:addFunctionParen(compl_list)"{{{
+  for item in a:compl_list
+    if type(item) == 4
+      if item.kind == 'f'
+        let item.word = item.word . '('
+      endif
+    endif 
+  endfor
+
+  return a:compl_list
 endfunction"}}}
 
 function! s:loadNodeDocData()"{{{

@@ -6,7 +6,7 @@ fs.
 fs.read
 fs[
 fs["
-fs[appendFile
+fs['chmodSync'](
 
 
 
@@ -39,5 +39,4 @@ var events = require('events');
 
 var e = new events.EventEmitter();
 
-__filename
-
+b.
