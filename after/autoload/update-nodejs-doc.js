@@ -129,7 +129,7 @@ function getModInfo(mods) {
     methods.forEach(function(method) {
       var item = {};
       if (method.type == 'method') {
-        item.word = method.name + '(';
+        item.word = method.name;
         item.info = method.textRaw;
         item.kind = 'f'
 
@@ -185,7 +185,7 @@ function getVarInfo(vars) {
     // if var is a function
     if ((/\([^\(\)]*\)\s*$/).test(_var.textRaw)) {
       ret.push({
-        word: _var.name + '(',
+        word: _var.name,
         info: _var.textRaw,
         kind: 'f'
       });

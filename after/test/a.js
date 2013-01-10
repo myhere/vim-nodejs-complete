@@ -6,6 +6,9 @@ fs.
 fs.read
 fs[
 fs["
+fs[appendFile
+
+
 
 
 abc = 'abc';
@@ -36,51 +39,5 @@ var events = require('events');
 
 var e = new events.EventEmitter();
 
-
-fs.readFile();
-fs['readFile']();
-
-
-{
-  globals: [
-    {
-      'name': 'module',
-      'prop': [
-        {
-          "word": "appendFile",
-          "info": "fs.appendFile(filename, data, encoding='utf8', [callback])",
-          "kind": "f"
-        }
-      ]
-    },
-  ],
-  modules: [
-    {
-      'name': 'events',
-      'prop': [
-        {
-          "word": "appendFile",
-          "info": "fs.appendFile(filename, data, encoding='utf8', [callback])",
-          "kind": "f"
-        }
-      ],
-      'classes': [
-        {
-          'name': 'EventEmitter',
-          'prop': [
-            {
-            }
-          ]
-        }
-      ]
-    }
-  ],
-  vars: [
-    {
-      "word": "__dirname",
-      "kind": "v"
-    },
-  ]
-}
-
+__filename
 
