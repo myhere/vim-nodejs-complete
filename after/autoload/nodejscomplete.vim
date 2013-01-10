@@ -7,8 +7,8 @@
 let s:nodejs_doc_file = expand('<sfile>:p:h') . '/nodejs-doc.vim'
 let s:js_varname_reg = '[$a-zA-Z_][$a-zA-Z0-9_]*'
 
-function! nodejscomplete#CompleteJS(findstart, base)
-  if a:findstart"{{{
+function! nodejscomplete#CompleteJS(findstart, base)"{{{
+  if a:findstart
     if exists('g:node_usejscomplete') && g:node_usejscomplete && 0
       let start = jscomplete#CompleteJS(a:findstart, a:base)
     else
@@ -40,12 +40,12 @@ function! nodejscomplete#CompleteJS(findstart, base)
     else
       return result.complete
     endif
-  endif"}}}
-endfunction
+  endif
+endfunction"}}}
 
 " get complete
-function! s:getNodeComplete(base, context)
-  Decho 'base: ' . a:base"{{{
+function! s:getNodeComplete(base, context)"{{{
+  Decho 'base: ' . a:base
   Decho 'context: ' . a:context
 
   " TODO: 排除 module.property.h 情况
@@ -114,11 +114,11 @@ function! s:getNodeComplete(base, context)
   "   endif
   " endif
 
-  " return []"}}}
-endfunction
+  " return [] 
+endfunction"}}}
 
-function! s:getModuleName(var_name)
-  " var_name assignment statement operand"{{{
+function! s:getModuleName(var_name)"{{{
+  " var_name assignment statement operand 
   " NOTICE:  can't change the List order, because we need the searchpos() return sub-pattern match number
   " require stmt
   " new stmt
@@ -167,11 +167,11 @@ function! s:getModuleName(var_name)
     elseif reg_idx == 2
       return s:getModuleName(matched)
     endif
-  endif"}}}
-endfunction
+  endif
+endfunction"}}}
 
-function! s:getRightHandText(line_num, col_num, extract_reg) 
-  let line_num = a:line_num"{{{
+function! s:getRightHandText(line_num, col_num, extract_reg)"{{{
+  let line_num = a:line_num
   let begin_line = getline(line_num)
   let stmt = begin_line[a:col_num - 1 :]
 
@@ -188,22 +188,22 @@ function! s:getRightHandText(line_num, col_num, extract_reg)
     endif
   endwhile
 
-  return matched"}}}
-endfunction
+  return matched
+endfunction"}}}
 
-function! s:isDeclaration(line_num, col_num)
-  " syntaxName @see: $VIMRUNTIME/syntax/javascript.vim"{{{
+function! s:isDeclaration(line_num, col_num)"{{{
+  " syntaxName @see: $VIMRUNTIME/syntax/javascript.vim
   let syntaxName = synIDattr(synID(a:line_num, a:col_num, 0), 'name')
   if syntaxName =~ '^javaScript\%(Comment\|LineComment\|String\|RegexpString\)'
     return 0
   else
     return 1
-  endif"}}}
-endfunction
+  endif
+endfunction"}}}
 
 " only complete nodejs's module info
-function! s:getModuleComplete(mod_name, prop_name, operator)
-  call s:loadNodeDocData()"{{{
+function! s:getModuleComplete(mod_name, prop_name, operator)"{{{
+  call s:loadNodeDocData()
 
   let mods = {}
   " complete node's builtin modules and global modules
@@ -255,11 +255,11 @@ function! s:getModuleComplete(mod_name, prop_name, operator)
     let ret = []
   endif
 
-  return ret"}}}
-endfunction
+  return ret
+endfunction"}}}
 
-function! s:getVariableComplete(context, var_name)
-  Decho 'var_name: ' . a:var_name"{{{
+function! s:getVariableComplete(context, var_name)"{{{
+  Decho 'var_name: ' . a:var_name
 
   " complete require's arguments
   let matched = matchlist(a:context, 'require\s*(\s*\%(\([''"]\)\(\.\{1,2}.*\)\=\)\=$')
@@ -298,11 +298,11 @@ function! s:getVariableComplete(context, var_name)
 
   let ret = filter(copy(vars), 'v:val["word"] =~# "^' . a:var_name . '"')
 
-  return ret"}}}
-endfunction
+  return ret
+endfunction"}}}
 
-function! s:getModuleInCurrentDir(context, var_name, matched) 
-  let mod_names = []"{{{
+function! s:getModuleInCurrentDir(context, var_name, matched)"{{{
+  let mod_names = []
   let path = a:matched[2] . a:var_name
 
   " typed as require('..
@@ -351,11 +351,11 @@ function! s:getModuleInCurrentDir(context, var_name, matched)
 
   Decho 'relative path: ' . path
 
-  return mod_names"}}}
-endfunction
+  return mod_names
+endfunction"}}}
 
-function! s:getModuleNames()
-  call s:loadNodeDocData()"{{{
+function! s:getModuleNames()"{{{
+  call s:loadNodeDocData()
 
   let mod_names = []
 
@@ -374,11 +374,11 @@ function! s:getModuleNames()
 
   let mod_names = mod_names + b:npm_module_names
 
-  return sort(mod_names)"}}}
-endfunction
+  return sort(mod_names)
+endfunction"}}}
 
-function! s:getModuleNamesInNode_modulesFolder(current_dir)
-  " ensure platform coincidence"{{{
+function! s:getModuleNamesInNode_modulesFolder(current_dir)"{{{
+  " ensure platform coincidence
   let base_dir = substitute(a:current_dir, '\', '/', 'g')
   Decho 'base_dir: ' . base_dir
 
@@ -410,11 +410,11 @@ function! s:getModuleNamesInNode_modulesFolder(current_dir)
 
   Decho 'npm modules: ' . string(ret)
 
-  return ret"}}}
-endfunction
+  return ret
+endfunction"}}}
 
-function! s:loadNodeDocData()
-  " load node module data"{{{
+function! s:loadNodeDocData()"{{{
+  " load node module data
   if (!exists('g:nodejs_complete_data'))
     " load data from external file
     let filename = s:nodejs_doc_file
@@ -425,17 +425,17 @@ function! s:loadNodeDocData()
     else
       Decho 'not readable: ' . filename
     endif
-  endif"}}}
-endfunction
+  endif
+endfunction"}}}
 
 " copied from FuzzyFinder/autoload/fuf.vim
 " returns list of paths.
 " An argument for glob() is normalized in order to avoid a bug on Windows.
-function! s:fuzglob(expr)
-  " Substitutes "\", because on Windows, "**\" doesn't include ".\","{{{
+function! s:fuzglob(expr)"{{{
+  " Substitutes "\", because on Windows, "**\" doesn't include ".\",
   " but "**/" include "./". I don't know why.
-  return split(glob(substitute(a:expr, '\', '/', 'g')), "\n")"}}}
-endfunction
+  return split(glob(substitute(a:expr, '\', '/', 'g')), "\n")
+endfunction"}}}
 
 
 "
