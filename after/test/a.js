@@ -26,17 +26,16 @@ function() {
 
 
 var a = {hello: 'world'},
-    b = new A,
     b = require('fs'),
+    b = new A,
     // b = a;
 
 
-b.constructor
+b.
 
 
 var events = require('events');
 
 var e = new events.EventEmitter();
 
-var fs = require('zlib');
-
+e.

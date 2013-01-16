@@ -71,8 +71,16 @@ function! s:getNodeComplete(base, context)"{{{
     let operator = matched[2]
     Decho 'var_name: ' . var_name . ' ; operator: ' . operator
 
-    let mod_name = s:getModuleName(var_name)
-    Decho 'mod_name: ' . mod_name . ' ; compl_prefix: ' . a:base
+    let result = s:getModuleName(var_name)
+    if (type(result) == type([]))
+      let [mod_name, cls_name] = result
+      Decho 'mod_name: ' . mod_name . ' ; class_name: ' . cls_name
+    else
+      let mod_name = result
+      Decho 'mod_name: ' . mod_name
+    endif
+    let mod_name = 1
+    Decho 'compl_prefix: ' . a:base
     if len(mod_name) > 0
       let compl_list = s:getModuleComplete(mod_name, a:base, operator)
     else
@@ -97,7 +105,17 @@ function! s:getNodeComplete(base, context)"{{{
   return ret
 endfunction"}}}
 
-function! s:getModuleName(var_name)"{{{
+" @param {String}
+" @param {Number} line num
+" @param {Number} column num
+" @return {String|List}
+"          String: nodejs module name
+"          List: [nodejs module name, class property of nodejs module]
+function! s:getModuleName(var_name, ...)"{{{
+  " move the cursor
+  if (a:0 == 2)
+    call cursor(a:1, a:2)
+  endif
   " var_name assignment statement operand 
   " NOTICE:  can't change the List order, because we need the searchpos() return sub-pattern match number
   " require stmt
@@ -105,69 +123,86 @@ function! s:getModuleName(var_name)"{{{
   " assign stmt
   let match_regs = [
     \   'require\_s*(\_s*[^)]\+\_s*)',
-    \   'new\_s' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . ' \)\?',
-    \   s:js_varname_reg . '\_s*\%([,;]\)'
+    \   'new\_s' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . '\)\?',
+    \   s:js_varname_reg
     \]
   let extract_regs = [
     \   'require\_s*(\_s*\zs[^)]\+\ze\_s*)',
-    \   '\zsnew\_s' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . ' \)\?\ze',
-    \   '\zs' . s:js_varname_reg . '\ze\_s*\%([,;]\)'
+    \   'new\_s\zs' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . '\)\?\ze',
+    \   '\zs' . s:js_varname_reg . '\ze'
     \]
 
   let decl_stmt_prefix_reg = '\<' . a:var_name . '\_s*=\_s*'
   let decl_stmt_suffix_reg = '\%(\(' . join(match_regs, '\)\|\(') . '\)\)'
   let decl_stmt_reg = decl_stmt_prefix_reg . decl_stmt_suffix_reg
-  " search backward, move the cursor, don't wrap, also return which submatch is found
-  let [line_num, col_num, reg_idx] = searchpos(decl_stmt_reg, 'bWp')
+  " search backward, don't move the cursor, don't wrap, also return which submatch is found
+  let [begin_line_num, begin_col_num, reg_idx] = searchpos(decl_stmt_reg, 'bnWp')
 
   " cann't find declaration, maybe a gloabl object like: console, process
-  if line_num == 0
+  if begin_line_num == 0
     Decho 'maybe global'
     return a:var_name
   else
-    let reg_idx -= 2
-    Decho 'declare_reg: ' . decl_stmt_reg
-    Decho 'declare_posi: ' . line_num . ':' . col_num
-
     " make sure it's not in comments...
-    if !s:isDeclaration(line_num, col_num)
-      return s:getModuleName(a:var_name)
+    if !s:isDeclaration(begin_line_num, begin_col_num)
+      " move the cursor for recursion
+      return s:getModuleName(a:var_name, begin_line_num, begin_col_num)
     endif
 
-    let matched = s:getRightHandText(line_num, col_num, decl_stmt_prefix_reg . extract_regs[reg_idx])
+    let [end_line_num, end_col_num, reg_idx] = searchpos(decl_stmt_reg, 'bnWpe')
+
+    Decho 'declare_reg: ' . decl_stmt_reg
+    Decho 'declare_posi: [' . begin_line_num . ':' . begin_col_num . '] - [' . end_line_num . ':' . end_col_num . ']'
+
+    let reg_idx -= 2
+    let matched = s:getRightHandText(begin_line_num, begin_col_num, end_line_num, end_col_num,
+                                   \ decl_stmt_prefix_reg . extract_regs[reg_idx])
     Decho 'rigth_hand_info: ' . string(matched) . ' idx: ' . reg_idx
     " require
     if reg_idx == 0
       return matchstr(matched, s:js_varname_reg)
     " new
     elseif reg_idx == 1
+      let parts = split(matched, '\.')
+      let parts_len = len(parts)
+      " only process obj.property, don't process obj.property.hello
+      if parts_len == 1
+        return [s:getModuleName(parts[0], begin_line_num, begin_col_num)]
+      elseif parts_len == 2
+        return [s:getModuleName(parts[0], begin_line_num, begin_col_num), parts[1]]
+      endif
       " TODO: finish it
       return ''
     " assign
     elseif reg_idx == 2
-      return s:getModuleName(matched)
+      return s:getModuleName(matched, begin_line_num, begin_col_num)
     endif
   endif
 endfunction"}}}
 
-function! s:getRightHandText(line_num, col_num, extract_reg)"{{{
-  let line_num = a:line_num
-  let begin_line = getline(line_num)
-  let stmt = begin_line[a:col_num - 1 :]
+function! s:getRightHandText(begin_line_num, begin_col_num, end_line_num, end_col_num, extract_reg)"{{{
+  let stmt = ''
+  if a:begin_line_num == a:end_line_num
+    let line = getline(a:begin_line_num)
+    let stmt = line[a:begin_col_num - 1 : a:end_col_num - 1]
+  else
+    let line = getline(a:begin_line_num)
+    let stmt = line[a:begin_col_num - 1 :]
 
-  " already found with searchpos(), so only break when matched
-  while 1
-    let matched = matchstr(stmt, a:extract_reg)
-    Decho 'stmt: ' . stmt
-    if len(matched)
-      let mod_name = matched
-      break
-    else
+    let line_num = a:begin_line_num + 1
+    while line_num < a:end_line_num
+      let line = getline(line_num)
+      let stmt .= line
       let line_num += 1
-      let stmt .= getline(line_num)
-    endif
-  endwhile
+    endwhile
 
+    let line = getline(a:end_line_num)
+    let stmt .= line[: a:end_col_num - 1]
+  endif
+
+  Decho 'stmt: ' . stmt
+
+  let matched = matchstr(stmt, a:extract_reg)
   return matched
 endfunction"}}}
 
