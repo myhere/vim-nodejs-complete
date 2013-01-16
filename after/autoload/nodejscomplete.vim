@@ -190,38 +190,39 @@ function! s:getModuleComplete(mod_name, prop_name, operator)"{{{
   for type in ['modules', 'globals']
     if (has_key(g:nodejs_complete_data, type))
       let mods = g:nodejs_complete_data[type]
-      break
+
+      if (has_key(mods, a:mod_name))
+        let mod = deepcopy(mods[a:mod_name])
+        " no prop_name suplied
+        if (len(a:prop_name) == 0)
+          let ret = mod
+        else
+          let ret = s:smartFilter(mod, 'v:val["word"]', a:prop_name)
+        endif
+
+        let [prefix, suffix] = ['', '']
+        let matched = matchlist(a:operator, '\[\s*\(["'']\)\?')
+        Decho 'operator_matched: ' . string(matched)
+        if len(matched)
+          if len(matched[1])
+            let [prefix, suffix] = ['', matched[1] . ']']
+          else
+            let [prefix, suffix] = ['''', ''']']
+          endif
+        endif
+
+        for item in ret
+          let item.word = prefix . item.word . suffix
+        endfor
+        call s:addFunctionParen(ret)
+
+        break
+      else
+        let ret = []
+      endif
     endif
   endfor
 
-  if (has_key(mods, a:mod_name))
-    let mod = deepcopy(mods[a:mod_name])
-    " no prop_name suplied
-    if (len(a:prop_name) == 0)
-      let ret = mod
-    else
-      let ret = s:smartFilter(mod, 'v:val["word"]', a:prop_name)
-    endif
-
-    let [prefix, suffix] = ['', '']
-    let matched = matchlist(a:operator, '\[\s*\(["'']\)\?')
-    Decho 'operator_matched: ' . string(matched)
-    if len(matched)
-      if len(matched[1])
-        let [prefix, suffix] = ['', matched[1] . ']']
-      else
-        let [prefix, suffix] = ['''', ''']']
-      endif
-    endif
-
-    for item in ret
-      let item.word = prefix . item.word . suffix
-    endfor
-    call s:addFunctionParen(ret)
-
-  else
-    let ret = []
-  endif
 
   return ret
 endfunction"}}}

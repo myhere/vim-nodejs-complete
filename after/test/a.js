@@ -36,7 +36,7 @@ b.constructor
 
 var events = require('events');
 
-
 var e = new events.EventEmitter();
 
-b.
+var fs = require('zlib');
+
