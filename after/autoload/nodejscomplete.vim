@@ -75,9 +75,10 @@ function! s:getNodeComplete(base, context)"{{{
   if len(matched) > 0
     let var_name = matched[1]
     let operator = matched[2]
+    let position = [line('.'), len(a:context) - len(matched[0])]
+    Decho 'position: ' . string(position)
     Decho 'var_name: ' . var_name . ' ; operator: ' . operator
-
-    let obj_info = s:getObjDeclareInfo(var_name)
+    let obj_info = s:getObjDeclareInfo(var_name, position)
     let mod_name = obj_info.value
     Decho 'mod_info: ' . string(obj_info) . '; compl_prefix: ' . a:base
     if len(mod_name) > 0
@@ -104,120 +105,113 @@ function! s:getNodeComplete(base, context)"{{{
   return ret
 endfunction"}}}
 
-" @param {String}
-" @param {Number} line num
-" @param {Number} column num
-" @return {Dictionary}
-"           - type: {Enum}
-"           - value: {String|Dictionary}
-"           - property: {List} optional
-function! s:getObjDeclareInfo(var_name, ...)"{{{
-  " move the cursor
-  if (a:0 == 2)
-    call cursor(a:1, a:2)
+function! s:getObjDeclareInfo(var_name, position)"{{{
+  let position = s:fixPosition(a:position)
+
+  if position[0] <= 0
+    return a:var_name
   endif
-  " var_name assignment statement operand 
-  " NOTICE:  can't change the List order, because we need the searchpos() return sub-pattern match number
-  " require stmt
-  " new stmt
-  " assign stmt
-  let match_regs = [
-    \   'require\_s*(\_s*[^)]\+\_s*)',
-    \   'new\_s' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . '\)*',
-    \   s:js_varname_reg
-    \]
-  let extract_regs = [
-    \   'require\_s*(\_s*\zs[^)]\+\ze\_s*)',
-    \   'new\_s\zs' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . '\)*\ze',
-    \   '\zs' . s:js_varname_reg . '\ze'
-    \]
 
   let decl_stmt_prefix_reg = '\<' . a:var_name . '\_s*=\_s*'
-  let decl_stmt_suffix_reg = '\%(\(' . join(match_regs, '\)\|\(') . '\)\)'
-  let decl_stmt_reg = decl_stmt_prefix_reg . decl_stmt_suffix_reg
-  " search backward, don't move the cursor, don't wrap, also return which submatch is found
-  let [begin_line_num, begin_col_num, reg_idx] = searchpos(decl_stmt_reg, 'bnWp')
-
-  " cann't find declaration, maybe a gloabl object like: console, process
-  if begin_line_num == 0
-    Decho 'maybe global'
-    return {
-      \ 'type': s:js_obj_declare_type.global,
-      \ 'value': a:var_name
-      \ }
-  else
-    " make sure it's not in comments...
-    if !s:isDeclaration(begin_line_num, begin_col_num)
-      " move the cursor for recursion
-      return s:getObjDeclareInfo(a:var_name, begin_line_num, begin_col_num)
-    endif
-
-    let [end_line_num, end_col_num, reg_idx] = searchpos(decl_stmt_reg, 'bnWpe')
-
-    Decho 'declare_reg: ' . decl_stmt_reg
-    Decho 'declare_posi: [' . begin_line_num . ':' . begin_col_num . '] - [' . end_line_num . ':' . end_col_num . ']'
-
-    let reg_idx -= 2
-    let matched = s:getRightHandText(begin_line_num, begin_col_num, end_line_num, end_col_num,
-                                   \ decl_stmt_prefix_reg . extract_regs[reg_idx])
-    Decho 'rigth_hand_info: ' . string(matched) . ' idx: ' . reg_idx
-    " require
-    if reg_idx == 0
-      return {
-        \ 'type': s:js_obj_declare_type.require,
-        \ 'value': matchstr(matched, s:js_varname_reg)
-        \ }
-    " new
-    elseif reg_idx == 1
-      let parts = split(matched, '\.')
-      if len(parts) == 1
-        return {
-          \ 'type': s:js_obj_declare_type.construct,
-          \ 'value': s:getObjDeclareInfo(parts[0], begin_line_num, begin_col_num)
-          \ }
-      else
-        return {
-          \ 'type': s:js_obj_declare_type.construct,
-          \ 'value': s:getObjDeclareInfo(parts[0], begin_line_num, begin_col_num),
-          \ 'property': parts[1 :]
-          \ }
-      endif
-    " assign
-    elseif reg_idx == 2
-      return s:getObjDeclareInfo(matched, begin_line_num, begin_col_num)
-    endif
-  endif
-endfunction"}}}
-
-function! s:getRightHandText(begin_line_num, begin_col_num, end_line_num, end_col_num, extract_reg)"{{{
-  let stmt = ''
-  if a:begin_line_num == a:end_line_num
-    let line = getline(a:begin_line_num)
-    let stmt = line[a:begin_col_num - 1 : a:end_col_num - 1]
-  else
-    let line = getline(a:begin_line_num)
-    let stmt = line[a:begin_col_num - 1 :]
-
-    let line_num = a:begin_line_num + 1
-    while line_num < a:end_line_num
-      let line = getline(line_num)
-      let stmt .= line
-      let line_num += 1
-    endwhile
-
-    let line = getline(a:end_line_num)
-    let stmt .= line[: a:end_col_num - 1]
+  " search backward, don't move the cursor, don't wrap
+  call cursor(position[0], position[1])
+  let begin_position = searchpos(decl_stmt_prefix_reg, 'bnW')
+  if begin_position[0] == 0
+    return a:var_name
   endif
 
-  Decho 'stmt: ' . stmt
+  " make sure it's not in comments...
+  if !s:isDeclaration(begin_position)
+    return s:getObjDeclareInfo(a:var_name, begin_position)
+  endif
 
-  let matched = matchstr(stmt, a:extract_reg)
-  return matched
+  let lines = s:getLinesInRange(begin_position, position)
+  Decho 'lines: ' . string(lines)
+  let code = join(lines, "\n")
+
+  return {'value': 'fs'}
+
+  " " move the cursor"{{{
+  " if (a:0 == 2)
+  "   call cursor(a:1, a:2)
+  " endif
+  " " var_name assignment statement operand 
+  " " NOTICE:  can't change the List order, because we need the searchpos() return sub-pattern match number
+  " " require stmt
+  " " new stmt
+  " " assign stmt
+  " let match_regs = [
+  "   \   'require\_s*(\_s*[^)]\+\_s*)',
+  "   \   'new\_s' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . '\)*',
+  "   \   s:js_varname_reg
+  "   \]
+  " let extract_regs = [
+  "   \   'require\_s*(\_s*\zs[^)]\+\ze\_s*)',
+  "   \   'new\_s\zs' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . '\)*\ze',
+  "   \   '\zs' . s:js_varname_reg . '\ze'
+  "   \]
+
+  " let decl_stmt_prefix_reg = '\<' . a:var_name . '\_s*=\_s*'
+  " let decl_stmt_suffix_reg = '\%(\(' . join(match_regs, '\)\|\(') . '\)\)'
+  " let decl_stmt_reg = decl_stmt_prefix_reg . decl_stmt_suffix_reg
+  " " search backward, don't move the cursor, don't wrap, also return which submatch is found
+  " let [begin_line_num, begin_col_num, reg_idx] = searchpos(decl_stmt_reg, 'bnWp')
+
+  " " cann't find declaration, maybe a gloabl object like: console, process
+  " if begin_line_num == 0
+  "   Decho 'maybe global'
+  "   return {
+  "     \ 'type': s:js_obj_declare_type.global,
+  "     \ 'value': a:var_name
+  "     \ }
+  " else
+  "   " make sure it's not in comments...
+  "   if !s:isDeclaration(begin_line_num, begin_col_num)
+  "     " move the cursor for recursion
+  "     return s:getObjDeclareInfo(a:var_name, begin_line_num, begin_col_num)
+  "   endif
+
+  "   let [end_line_num, end_col_num, reg_idx] = searchpos(decl_stmt_reg, 'bnWpe')
+
+  "   Decho 'declare_reg: ' . decl_stmt_reg
+  "   Decho 'declare_posi: [' . begin_line_num . ':' . begin_col_num . '] - [' . end_line_num . ':' . end_col_num . ']'
+
+  "   let reg_idx -= 2
+  "   let matched = s:getRightHandText(begin_line_num, begin_col_num, end_line_num, end_col_num,
+  "                                  \ decl_stmt_prefix_reg . extract_regs[reg_idx])
+  "   Decho 'rigth_hand_info: ' . string(matched) . ' idx: ' . reg_idx
+  "   " require
+  "   if reg_idx == 0
+  "     return {
+  "       \ 'type': s:js_obj_declare_type.require,
+  "       \ 'value': matchstr(matched, s:js_varname_reg)
+  "       \ }
+  "   " new
+  "   elseif reg_idx == 1
+  "     let parts = split(matched, '\.')
+  "     if len(parts) == 1
+  "       return {
+  "         \ 'type': s:js_obj_declare_type.construct,
+  "         \ 'value': s:getObjDeclareInfo(parts[0], begin_line_num, begin_col_num)
+  "         \ }
+  "     else
+  "       return {
+  "         \ 'type': s:js_obj_declare_type.construct,
+  "         \ 'value': s:getObjDeclareInfo(parts[0], begin_line_num, begin_col_num),
+  "         \ 'property': parts[1 :]
+  "         \ }
+  "     endif
+  "   " assign
+  "   elseif reg_idx == 2
+  "     return s:getObjDeclareInfo(matched, begin_line_num, begin_col_num)
+  "   endif
+  " endif"}}}
 endfunction"}}}
 
-function! s:isDeclaration(line_num, col_num)"{{{
+function! s:isDeclaration(position)"{{{
+  let [line_num, col_num] = a:position
   " syntaxName @see: $VIMRUNTIME/syntax/javascript.vim
-  let syntaxName = synIDattr(synID(a:line_num, a:col_num, 0), 'name')
+  let syntaxName = synIDattr(synID(line_num, col_num, 0), 'name')
   if syntaxName =~ '^javaScript\%(Comment\|LineComment\|String\|RegexpString\)'
     return 0
   else
@@ -428,21 +422,6 @@ function! s:getModuleNamesInNode_modulesFolder(current_dir)"{{{
   return ret
 endfunction"}}}
 
-" filter items with exact match at first
-function! s:smartFilter(items, str, keyword)"{{{
-  let items = filter(a:items, a:str . ' =~ "' . a:keyword . '"')
-  let [exact_ret, fuzzy_ret] = [[], []]
-  for item in items
-    if item.word =~ '^' . a:keyword
-      call add(exact_ret, item)
-    else
-      call add(fuzzy_ret, item)
-    endif
-  endfor
-
-  return exact_ret + fuzzy_ret
-endfunction"}}}
-
 function! s:addFunctionParen(compl_list)"{{{
   for item in a:compl_list
     if type(item) == 4
@@ -479,6 +458,69 @@ function! s:fuzglob(expr)"{{{
   return split(glob(substitute(a:expr, '\', '/', 'g')), "\n")
 endfunction"}}}
 
+
+" when x <= 0, return [0, 0]
+" when y <= 0, move to previous line end
+function! s:fixPosition(position)"{{{
+  let [x, y] = a:position
+
+  if x <= 0
+    return [0, 0]
+  endif
+
+  if y <= 0
+    if x > 1
+      let y = len(getline(x - 1))
+    else
+      let y = len(getline(1))
+    endif
+
+    return [x, y]
+  endif
+endfunction"}}}
+
+
+" return a List contains every line
+function! s:getLinesInRange(begin_position, end_position)"{{{
+  let [begin_x, begin_y] = a:begin_position
+  let [end_x, end_y] = a:end_position
+
+  let lines = []
+  if begin_x == end_x
+    let line = getline(begin_x)
+    call add(lines, line[begin_y - 1 : end_y - 1])
+  else
+    let line = getline(begin_x)
+    call add(lines, line[begin_y - 1 :])
+
+    let x = begin_x + 1
+    while x < end_x
+      let line = getline(x)
+      call add(lines, line)
+      let x += 1
+    endwhile
+
+    let line = getline(end_x)
+    call add(lines, line[: end_y - 1])
+  endif
+
+  return lines
+endfunction"}}}
+
+" filter items with exact match at first
+function! s:smartFilter(items, str, keyword)"{{{
+  let items = filter(a:items, a:str . ' =~ "' . a:keyword . '"')
+  let [exact_ret, fuzzy_ret] = [[], []]
+  for item in items
+    if item.word =~ '^' . a:keyword
+      call add(exact_ret, item)
+    else
+      call add(fuzzy_ret, item)
+    endif
+  endfor
+
+  return exact_ret + fuzzy_ret
+endfunction"}}}
 
 "
 " use plugin Decho(https://github.com/vim-scripts/Decho) for debug

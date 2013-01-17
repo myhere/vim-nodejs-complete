@@ -40,6 +40,4 @@ var e = new events.EventEmitter();
 var b = new Buffer;
 var b = new global.Buffer;
 
-e.
-b.
-events.
+events.appendFile(
