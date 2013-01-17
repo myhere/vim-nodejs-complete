@@ -27,7 +27,7 @@ function() {
 
 var a = {hello: 'world'},
     b = require('fs'),
-    b = new A,
+    // b = new A,
     // b = a;
 
 
@@ -37,5 +37,9 @@ b.
 var events = require('events');
 
 var e = new events.EventEmitter();
+var b = new Buffer;
+var b = new global.Buffer;
 
 e.
+b.
+events.

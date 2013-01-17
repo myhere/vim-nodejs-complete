@@ -8,6 +8,12 @@ let s:nodejs_doc_file = expand('<sfile>:p:h') . '/nodejs-doc.vim'
 
 let s:js_varname_reg = '[$a-zA-Z_][$a-zA-Z0-9_]*'
 
+let s:js_obj_declare_type = {
+  \ 'global': 0,
+  \ 'require': 1,
+  \ 'construct': 2
+  \ }
+
 " settings
 if !exists('g:nodejs_complete_max_compl_len')
   let g:nodejs_complete_max_compl_len = 15
@@ -71,16 +77,9 @@ function! s:getNodeComplete(base, context)"{{{
     let operator = matched[2]
     Decho 'var_name: ' . var_name . ' ; operator: ' . operator
 
-    let result = s:getModuleName(var_name)
-    if (type(result) == type([]))
-      let [mod_name, cls_name] = result
-      Decho 'mod_name: ' . mod_name . ' ; class_name: ' . cls_name
-    else
-      let mod_name = result
-      Decho 'mod_name: ' . mod_name
-    endif
-    let mod_name = 1
-    Decho 'compl_prefix: ' . a:base
+    let obj_info = s:getObjDeclareInfo(var_name)
+    let mod_name = obj_info.value
+    Decho 'mod_info: ' . string(obj_info) . '; compl_prefix: ' . a:base
     if len(mod_name) > 0
       let compl_list = s:getModuleComplete(mod_name, a:base, operator)
     else
@@ -108,10 +107,11 @@ endfunction"}}}
 " @param {String}
 " @param {Number} line num
 " @param {Number} column num
-" @return {String|List}
-"          String: nodejs module name
-"          List: [nodejs module name, class property of nodejs module]
-function! s:getModuleName(var_name, ...)"{{{
+" @return {Dictionary}
+"           - type: {Enum}
+"           - value: {String|Dictionary}
+"           - property: {List} optional
+function! s:getObjDeclareInfo(var_name, ...)"{{{
   " move the cursor
   if (a:0 == 2)
     call cursor(a:1, a:2)
@@ -123,12 +123,12 @@ function! s:getModuleName(var_name, ...)"{{{
   " assign stmt
   let match_regs = [
     \   'require\_s*(\_s*[^)]\+\_s*)',
-    \   'new\_s' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . '\)\?',
+    \   'new\_s' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . '\)*',
     \   s:js_varname_reg
     \]
   let extract_regs = [
     \   'require\_s*(\_s*\zs[^)]\+\ze\_s*)',
-    \   'new\_s\zs' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . '\)\?\ze',
+    \   'new\_s\zs' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . '\)*\ze',
     \   '\zs' . s:js_varname_reg . '\ze'
     \]
 
@@ -141,12 +141,15 @@ function! s:getModuleName(var_name, ...)"{{{
   " cann't find declaration, maybe a gloabl object like: console, process
   if begin_line_num == 0
     Decho 'maybe global'
-    return a:var_name
+    return {
+      \ 'type': s:js_obj_declare_type.global,
+      \ 'value': a:var_name
+      \ }
   else
     " make sure it's not in comments...
     if !s:isDeclaration(begin_line_num, begin_col_num)
       " move the cursor for recursion
-      return s:getModuleName(a:var_name, begin_line_num, begin_col_num)
+      return s:getObjDeclareInfo(a:var_name, begin_line_num, begin_col_num)
     endif
 
     let [end_line_num, end_col_num, reg_idx] = searchpos(decl_stmt_reg, 'bnWpe')
@@ -160,22 +163,28 @@ function! s:getModuleName(var_name, ...)"{{{
     Decho 'rigth_hand_info: ' . string(matched) . ' idx: ' . reg_idx
     " require
     if reg_idx == 0
-      return matchstr(matched, s:js_varname_reg)
+      return {
+        \ 'type': s:js_obj_declare_type.require,
+        \ 'value': matchstr(matched, s:js_varname_reg)
+        \ }
     " new
     elseif reg_idx == 1
       let parts = split(matched, '\.')
-      let parts_len = len(parts)
-      " only process obj.property, don't process obj.property.hello
-      if parts_len == 1
-        return [s:getModuleName(parts[0], begin_line_num, begin_col_num)]
-      elseif parts_len == 2
-        return [s:getModuleName(parts[0], begin_line_num, begin_col_num), parts[1]]
+      if len(parts) == 1
+        return {
+          \ 'type': s:js_obj_declare_type.construct,
+          \ 'value': s:getObjDeclareInfo(parts[0], begin_line_num, begin_col_num)
+          \ }
+      else
+        return {
+          \ 'type': s:js_obj_declare_type.construct,
+          \ 'value': s:getObjDeclareInfo(parts[0], begin_line_num, begin_col_num),
+          \ 'property': parts[1 :]
+          \ }
       endif
-      " TODO: finish it
-      return ''
     " assign
     elseif reg_idx == 2
-      return s:getModuleName(matched, begin_line_num, begin_col_num)
+      return s:getObjDeclareInfo(matched, begin_line_num, begin_col_num)
     endif
   endif
 endfunction"}}}
