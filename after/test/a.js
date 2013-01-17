@@ -10,23 +10,8 @@ fs['chmodSync'](
 
 
 
-
-abc = 'abc';
-var asdfasdf =  abc;
-
-
-abc.def.getDate(
-
-''+fs.
-
-fs .  a
-
-function() {
-}
-
-
 var a = {hello: 'world'},
-    b = require('fs'),
+    b = require('path'),
     // b = new A,
     // b = a;
 
@@ -36,8 +21,12 @@ b.
 
 var events = require('events');
 
-var e = new events.EventEmitter();
-var b = new Buffer;
-var b = new global.Buffer;
 
-events.appendFile(
+var emitter = new events.EventEmitter();
+var buffer = new Buffer;
+var buffer = new global.Buffer;
+
+emitter.
+buffer.
+
+

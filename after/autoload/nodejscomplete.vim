@@ -11,7 +11,7 @@ let s:js_varname_reg = '[$a-zA-Z_][$a-zA-Z0-9_]*'
 let s:js_obj_declare_type = {
   \ 'global': 0,
   \ 'require': 1,
-  \ 'construct': 2
+  \ 'constructor': 2
   \ }
 
 " settings
@@ -76,23 +76,33 @@ function! s:getNodeComplete(base, context)"{{{
     let var_name = matched[1]
     let operator = matched[2]
     let position = [line('.'), len(a:context) - len(matched[0])]
-    Decho 'position: ' . string(position)
     Decho 'var_name: ' . var_name . ' ; operator: ' . operator
-    let obj_info = s:getObjDeclareInfo(var_name, position)
-    let mod_name = obj_info.value
-    Decho 'mod_info: ' . string(obj_info) . '; compl_prefix: ' . a:base
-    if len(mod_name) > 0
-      let compl_list = s:getModuleComplete(mod_name, a:base, operator)
+    let declare_info = s:getObjDeclareInfo(var_name, position)
+    Decho 'mod_info: ' . string(declare_info) . '; compl_prefix: ' . a:base
+
+    " require or global
+    if index([s:js_obj_declare_type.global, s:js_obj_declare_type.require],
+             \ declare_info.type) != -1
+      let mod_name = declare_info.value
+      if len(mod_name) > 0
+        let compl_list = s:getModuleComplete(mod_name, a:base, operator)
+      else
+        let compl_list = []
+      endif
+      let ret = {
+        \ 'complete': compl_list
+        \ }
+      if len(compl_list) == 0
+        let ret.continue = 1
+      else
+        let ret.continue = 0
+      endif
+    " new
     else
-      let compl_list = []
-    endif
-    let ret = {
-      \ 'complete': compl_list
-      \ }
-    if len(compl_list) == 0
-      let ret.continue = 1
-    else
-      let ret.continue = 0
+      return  {
+        \ 'continue': 1,
+        \ 'complete': []
+        \ }
     endif
   " 全局补全
   else
@@ -107,9 +117,13 @@ endfunction"}}}
 
 function! s:getObjDeclareInfo(var_name, position)"{{{
   let position = s:fixPosition(a:position)
+  Decho 'position: ' . string(position)
 
   if position[0] <= 0
-    return a:var_name
+    return {
+      \ 'type': s:js_obj_declare_type.global,
+      \ 'value': a:var_name
+      \}
   endif
 
   let decl_stmt_prefix_reg = '\<' . a:var_name . '\_s*=\_s*'
@@ -117,7 +131,11 @@ function! s:getObjDeclareInfo(var_name, position)"{{{
   call cursor(position[0], position[1])
   let begin_position = searchpos(decl_stmt_prefix_reg, 'bnW')
   if begin_position[0] == 0
-    return a:var_name
+    Decho 'global'
+    return {
+      \ 'type': s:js_obj_declare_type.global,
+      \ 'value': a:var_name
+      \}
   endif
 
   " make sure it's not in comments...
@@ -129,83 +147,39 @@ function! s:getObjDeclareInfo(var_name, position)"{{{
   Decho 'lines: ' . string(lines)
   let code = join(lines, "\n")
 
-  return {'value': 'fs'}
+  " require
+  let require_stmt_reg = decl_stmt_prefix_reg .
+                         \ 'require\_s*(\_s*\([''"]\)\zs[^)''"]\+\ze\1\_s*)'
+  let matched = matchstr(code, require_stmt_reg)
+  if len(matched)
+    return {
+      \ 'type': s:js_obj_declare_type.require,
+      \ 'value': matched
+      \}
+  endif
 
-  " " move the cursor"{{{
-  " if (a:0 == 2)
-  "   call cursor(a:1, a:2)
-  " endif
-  " " var_name assignment statement operand 
-  " " NOTICE:  can't change the List order, because we need the searchpos() return sub-pattern match number
-  " " require stmt
-  " " new stmt
-  " " assign stmt
-  " let match_regs = [
-  "   \   'require\_s*(\_s*[^)]\+\_s*)',
-  "   \   'new\_s' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . '\)*',
-  "   \   s:js_varname_reg
-  "   \]
-  " let extract_regs = [
-  "   \   'require\_s*(\_s*\zs[^)]\+\ze\_s*)',
-  "   \   'new\_s\zs' . s:js_varname_reg . '\%(\_s*\.\_s*' . s:js_varname_reg . '\)*\ze',
-  "   \   '\zs' . s:js_varname_reg . '\ze'
-  "   \]
+  " new
+  let new_stmt_reg = decl_stmt_prefix_reg .
+                    \ 'new\_s\zs' . s:js_varname_reg . '\%(\_s*\.\_s*' .
+                    \  s:js_varname_reg . '\)*\ze'
+  let matched = matchstr(code, new_stmt_reg)
+  if len(matched)
+    let parts = split(matched, '\.')
+    return {
+      \ 'type': s:js_obj_declare_type.constructor,
+      \ 'value': [s:getObjDeclareInfo(parts[0], begin_position)] + parts[1:]
+      \}
+  endif
 
-  " let decl_stmt_prefix_reg = '\<' . a:var_name . '\_s*=\_s*'
-  " let decl_stmt_suffix_reg = '\%(\(' . join(match_regs, '\)\|\(') . '\)\)'
-  " let decl_stmt_reg = decl_stmt_prefix_reg . decl_stmt_suffix_reg
-  " " search backward, don't move the cursor, don't wrap, also return which submatch is found
-  " let [begin_line_num, begin_col_num, reg_idx] = searchpos(decl_stmt_reg, 'bnWp')
+  " assign
+  let assign_stmt_reg = decl_stmt_prefix_reg . '\zs' . s:js_varname_reg . '\ze'
+  let matched = matchstr(code, assign_stmt_reg)
+  if len(matched)
+    return s:getObjDeclareInfo(a:var_name, begin_position)
+  endif
 
-  " " cann't find declaration, maybe a gloabl object like: console, process
-  " if begin_line_num == 0
-  "   Decho 'maybe global'
-  "   return {
-  "     \ 'type': s:js_obj_declare_type.global,
-  "     \ 'value': a:var_name
-  "     \ }
-  " else
-  "   " make sure it's not in comments...
-  "   if !s:isDeclaration(begin_line_num, begin_col_num)
-  "     " move the cursor for recursion
-  "     return s:getObjDeclareInfo(a:var_name, begin_line_num, begin_col_num)
-  "   endif
-
-  "   let [end_line_num, end_col_num, reg_idx] = searchpos(decl_stmt_reg, 'bnWpe')
-
-  "   Decho 'declare_reg: ' . decl_stmt_reg
-  "   Decho 'declare_posi: [' . begin_line_num . ':' . begin_col_num . '] - [' . end_line_num . ':' . end_col_num . ']'
-
-  "   let reg_idx -= 2
-  "   let matched = s:getRightHandText(begin_line_num, begin_col_num, end_line_num, end_col_num,
-  "                                  \ decl_stmt_prefix_reg . extract_regs[reg_idx])
-  "   Decho 'rigth_hand_info: ' . string(matched) . ' idx: ' . reg_idx
-  "   " require
-  "   if reg_idx == 0
-  "     return {
-  "       \ 'type': s:js_obj_declare_type.require,
-  "       \ 'value': matchstr(matched, s:js_varname_reg)
-  "       \ }
-  "   " new
-  "   elseif reg_idx == 1
-  "     let parts = split(matched, '\.')
-  "     if len(parts) == 1
-  "       return {
-  "         \ 'type': s:js_obj_declare_type.construct,
-  "         \ 'value': s:getObjDeclareInfo(parts[0], begin_line_num, begin_col_num)
-  "         \ }
-  "     else
-  "       return {
-  "         \ 'type': s:js_obj_declare_type.construct,
-  "         \ 'value': s:getObjDeclareInfo(parts[0], begin_line_num, begin_col_num),
-  "         \ 'property': parts[1 :]
-  "         \ }
-  "     endif
-  "   " assign
-  "   elseif reg_idx == 2
-  "     return s:getObjDeclareInfo(matched, begin_line_num, begin_col_num)
-  "   endif
-  " endif"}}}
+  " continure to search backward
+  return s:getObjDeclareInfo(a:var_name, begin_position)
 endfunction"}}}
 
 function! s:isDeclaration(position)"{{{
@@ -469,14 +443,13 @@ function! s:fixPosition(position)"{{{
   endif
 
   if y <= 0
-    if x > 1
-      let y = len(getline(x - 1))
-    else
-      let y = len(getline(1))
-    endif
+    let x -= 1
+    let y = len(getline(x))
 
-    return [x, y]
+    return s:fixPosition([x, y])
   endif
+
+  return [x, y]
 endfunction"}}}
 
 
