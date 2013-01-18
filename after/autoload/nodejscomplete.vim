@@ -80,28 +80,8 @@ function! s:getNodeComplete(base, context)"{{{
     let declare_info = s:getObjDeclareInfo(var_name, position)
     Decho 'mod_info: ' . string(declare_info) . '; compl_prefix: ' . a:base
 
-    " require or global
-    if declare_info.type == s:js_obj_declare_type.global ||
-      \  declare_info.type == s:js_obj_declare_type.require
-
-        let compl_list = s:getModuleComplete(declare_info.type, declare_info.value,
-                                           \ a:base, operator)
-    " new
-    else
-      let chains = declare_info.value
-      let main_obj = chains[0]
-
-      " global
-      if main_obj.type == s:js_obj_declare_type.global || main_obj.value == 'global'
-        let compl_list = []
-      " require
-      elseif main_obj.type == s:js_obj_declare_type.require
-        let compl_list = []
-      " ignore
-      else
-        let compl_list = []
-      endif
-    endif
+    let compl_list = s:getModuleComplete(declare_info.type, declare_info.value,
+                                        \ a:base, operator)
 
     let ret = {
       \ 'complete': compl_list
@@ -204,9 +184,28 @@ endfunction"}}}
 function! s:getModuleComplete(type, mod_name, prop_name, operator)"{{{
   call s:loadNodeDocData()
 
-  if a:type == 0
+  " new
+  if a:type == s:js_obj_declare_type.constructor
+    let chains = a:mod_name
+    let main_obj = chains[0]
+
+    " global
+    if main_obj.type == s:js_obj_declare_type.global || main_obj.value == 'global'
+      let ret = []
+    " require
+    elseif main_obj.type == s:js_obj_declare_type.require
+      let ret = []
+    " ignore
+    else
+      let ret = []
+    endif
+
+    return ret
+  endif
+
+  if a:type == s:js_obj_declare_type.global
     let type = 'globals'
-  elseif a:type == 1
+  elseif a:type == s:js_obj_declare_type.require
     let type = 'modules'
   end
   let mods = {}
