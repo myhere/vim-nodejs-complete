@@ -24,9 +24,15 @@ var events = require('events');
 
 var emitter = new events.EventEmitter();
 var buffer = new Buffer;
-var buffer = new global.Buffer;
+// var buffer = new global.Buffer;
+var tester = new A.B.C();
 
 emitter.
 buffer.
+tester.
+
+
+cons
+
 
 

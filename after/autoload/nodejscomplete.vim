@@ -81,31 +81,39 @@ function! s:getNodeComplete(base, context)"{{{
     Decho 'mod_info: ' . string(declare_info) . '; compl_prefix: ' . a:base
 
     " require or global
-    if index([s:js_obj_declare_type.global, s:js_obj_declare_type.require],
-             \ declare_info.type) != -1
-      let mod_name = declare_info.value
-      if len(mod_name) > 0
-        let compl_list = s:getModuleComplete(mod_name, a:base, operator)
+    if declare_info.type == s:js_obj_declare_type.global ||
+      \  declare_info.type == s:js_obj_declare_type.require
+
+        let compl_list = s:getModuleComplete(declare_info.type, declare_info.value,
+                                           \ a:base, operator)
+    " new
+    else
+      let chains = declare_info.value
+      let main_obj = chains[0]
+
+      " global
+      if main_obj.type == s:js_obj_declare_type.global || main_obj.value == 'global'
+        let compl_list = []
+      " require
+      elseif main_obj.type == s:js_obj_declare_type.require
+        let compl_list = []
+      " ignore
       else
         let compl_list = []
       endif
-      let ret = {
-        \ 'complete': compl_list
-        \ }
-      if len(compl_list) == 0
-        let ret.continue = 1
-      else
-        let ret.continue = 0
-      endif
-    " new
+    endif
+
+    let ret = {
+      \ 'complete': compl_list
+      \ }
+    if len(compl_list) == 0
+      let ret.continue = 1
     else
-      return  {
-        \ 'continue': 1,
-        \ 'complete': []
-        \ }
+      let ret.continue = 0
     endif
   " 全局补全
   else
+    Decho 'var complete'
     let ret = {
       \ 'continue': 1,
       \ 'complete': s:getVariableComplete(a:context, a:base)
@@ -131,7 +139,6 @@ function! s:getObjDeclareInfo(var_name, position)"{{{
   call cursor(position[0], position[1])
   let begin_position = searchpos(decl_stmt_prefix_reg, 'bnW')
   if begin_position[0] == 0
-    Decho 'global'
     return {
       \ 'type': s:js_obj_declare_type.global,
       \ 'value': a:var_name
@@ -194,47 +201,42 @@ function! s:isDeclaration(position)"{{{
 endfunction"}}}
 
 " only complete nodejs's module info
-function! s:getModuleComplete(mod_name, prop_name, operator)"{{{
+function! s:getModuleComplete(type, mod_name, prop_name, operator)"{{{
   call s:loadNodeDocData()
 
+  if a:type == 0
+    let type = 'globals'
+  elseif a:type == 1
+    let type = 'modules'
+  end
   let mods = {}
+  let mods = g:nodejs_complete_data[type]
   " complete node's builtin modules and global modules
-  for type in ['modules', 'globals']
-    if (has_key(g:nodejs_complete_data, type))
-      let mods = g:nodejs_complete_data[type]
+  let ret = []
+  if (has_key(mods, a:mod_name))
+    let mod = deepcopy(mods[a:mod_name])
+    " no prop_name suplied
+    if (len(a:prop_name) == 0)
+      let ret = mod
+    else
+      let ret = s:smartFilter(mod, 'v:val["word"]', a:prop_name)
+    endif
 
-      if (has_key(mods, a:mod_name))
-        let mod = deepcopy(mods[a:mod_name])
-        " no prop_name suplied
-        if (len(a:prop_name) == 0)
-          let ret = mod
-        else
-          let ret = s:smartFilter(mod, 'v:val["word"]', a:prop_name)
-        endif
-
-        let [prefix, suffix] = ['', '']
-        let matched = matchlist(a:operator, '\[\s*\(["'']\)\?')
-        Decho 'operator_matched: ' . string(matched)
-        if len(matched)
-          if len(matched[1])
-            let [prefix, suffix] = ['', matched[1] . ']']
-          else
-            let [prefix, suffix] = ['''', ''']']
-          endif
-        endif
-
-        for item in ret
-          let item.word = prefix . item.word . suffix
-        endfor
-        call s:addFunctionParen(ret)
-
-        break
+    let [prefix, suffix] = ['', '']
+    let matched = matchlist(a:operator, '\[\s*\(["'']\)\?')
+    Decho 'operator_matched: ' . string(matched)
+    if len(matched)
+      if len(matched[1])
+        let [prefix, suffix] = ['', matched[1] . ']']
       else
-        let ret = []
+        let [prefix, suffix] = ['''', ''']']
       endif
     endif
-  endfor
 
+    for item in ret
+      let item.word = prefix . item.word . suffix
+    endfor
+    call s:addFunctionParen(ret)
 
   return ret
 endfunction"}}}
