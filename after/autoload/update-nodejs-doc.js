@@ -86,11 +86,11 @@ function getNodejsDoc() {
 
 function extract2VimScript(body) {
   // for debug
-  fs.writeFileSync('./nodejs-doc-all.json', body);
+  fs.writeFile('./nodejs-doc-all.json', body);
   var json = JSON.parse(body),
       vimObject;
 
-  var _globals = sortModuleByName(mergeObject(getModInfo(json.globals), getModInfo(json.vars))),
+  var _globals = sortModuleByName(mergeObject(getModsInfo(json.globals), getModsInfo(json.vars))),
       _moduels = sortModuleByName(getModInfo(json.modules)),
       _vars = (getVarInfo(json.vars)).concat(getVarInfo(json.globals)).sort(sortCompleteWord);
 
@@ -115,47 +115,13 @@ function extract2VimScript(body) {
   fs.writeFileSync(filename + '.js', JSON.stringify(vimObject, null, 2));
 }
 
-function getModInfo(mods) {
+function getModsInfo(mods) {
   var ret = {};
   if (!util.isArray(mods)) {
     return ret;
   }
 
-  mods.forEach(function(mod) {
-    var list = [];
-
-    // methods
-    var methods = mod.methods || [];
-    methods.forEach(function(method) {
-      var item = {};
-      if (method.type == 'method') {
-        item.word = method.name;
-        item.info = method.textRaw;
-        item.kind = 'f'
-
-        list.push(item);
-      }
-    });
-
-    // properties
-    var properties = mod.properties || [];
-    properties.forEach(function(property) {
-      var item = {};
-      item.word = property.name;
-      item.kind = 'm'
-
-      list.push(item);
-    });
-
-    // if empty
-    if (list.length == 0) {
-      return;
-    }
-
-    // sort items
-    list = list.sort(sortCompleteWord);
-
-
+  var getModInfo = function(mod) {
     // module name
     var mod_name = mod.name;
     // invalid module name like 'tls_(ssl)'
@@ -169,11 +135,63 @@ function getModInfo(mods) {
       }
     }
 
-    ret[mod_name] = list;
+    // methods + properties
+    var protos = [];
+
+    // methods
+    var methods = mod.methods || [];
+    methods.forEach(function(method) {
+      var item = {};
+      if (method.type == 'method') {
+        item.word = method.name;
+        item.info = method.textRaw;
+        item.kind = 'f'
+
+        protos.push(item);
+      }
+    });
+
+    // properties
+    var properties = mod.properties || [];
+    properties.forEach(function(property) {
+      var item = {};
+      item.word = property.name;
+      item.kind = 'm'
+
+      protos.push(item);
+    });
+
+    // classes
+    var classes = mod.classes || {};
+    classes.forEach(function(cls) {
+      var names = cls.name;
+
+      // 
+      var chains = names.split('.');
+      chains.forEach(function(name) {
+      });
+
+    });
+
+    // sort items
+    protos = protos.sort(sortCompleteWord);
+
+    return {
+      name: mod_name,
+      info: protos
+    };
+  };
+
+  // 
+  mods.forEach(function(mod) {
+    var mod_info = getModInfo(mod);
+
+    ret[mod.name] = mod_info;
   });
 
   return ret;
 }
+
 
 function getVarInfo(vars) {
   var ret = [];
@@ -252,32 +270,3 @@ function mergeObject() {
 
   return ret;
 }
-
-
-/*************** code below for test ***************
-
-// require complete
-var fs = req
-var http = require(
-var util = require('u
-var m1 = require('..
-var m1 = require('../
-var m2 = require('../auto
-var m4 = require('.
-var m3 = require('./
-var m3 = require('./node
-
-
-// module methdo complete
-var fs = require('fs');
-fs.
-fs.writ
-
-
-// global variable complete
-var filename = __
-mo
-cons
-console.l
-
-***************************************************/

@@ -191,10 +191,18 @@ function! s:getModuleComplete(type, mod_name, prop_name, operator)"{{{
 
     " global
     if main_obj.type == s:js_obj_declare_type.global || main_obj.value == 'global'
-      let ret = []
+      if main_obj.type == s:js_obj_declare_type.global
+        let class_names = [main_obj.value] + chains[1 :]
+      else
+        let class_names = chains[1 :]
+      endif
+      let mod_name = ''
+      let ret = s:getConstructorModuleComplete(a:type, mod_name, class_names)
     " require
     elseif main_obj.type == s:js_obj_declare_type.require
-      let ret = []
+      let mod_name = main_obj.value
+      let class_names = chains[1 :]
+      let ret = s:getConstructorModuleComplete(a:type, mod_name, class_names)
     " ignore
     else
       let ret = []
@@ -396,6 +404,10 @@ function! s:getModuleNamesInNode_modulesFolder(current_dir)"{{{
 
   return ret
 endfunction"}}}
+
+function! s:getConstructorModuleComplete(type, mod_name, class_names)
+  Decho 'getConstructorModuleComplete: ' . string(a:)
+endfunction
 
 function! s:addFunctionParen(compl_list)"{{{
   for item in a:compl_list

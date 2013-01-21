@@ -36,3 +36,47 @@ tester.
 
 
 cons
+
+
+
+{
+  "globals": {
+    "Buffer": {
+      "classes": [
+        {
+          ".self": [
+            {
+              "word": "write",
+              "info": "buf.write(string, [offset], [length], [encoding])",
+              "kind": "f"
+            }
+          ]
+        }
+      ],
+      "protos": [
+      ]
+    }
+  },
+  "modules": {
+    "events" {
+      "classes": [
+      ],
+      "protos": [
+      ]
+    }
+  },
+  "vars": [
+    {
+      "word": "__dirname",
+      "kind": "v"
+    }
+  ]
+}
+
+
+
+
+
+
+
+
