@@ -186,7 +186,7 @@ function! s:getModuleComplete(type, mod_name, prop_name, operator)"{{{
 
   " new
   if a:type == s:js_obj_declare_type.constructor
-    let chains = a:mod_name
+    let chains = a:mod_name"{{{
     let main_obj = chains[0]
 
     " global
@@ -208,7 +208,7 @@ function! s:getModuleComplete(type, mod_name, prop_name, operator)"{{{
       let ret = []
     endif
 
-    return ret
+    return ret"}}}
   endif
 
   if a:type == s:js_obj_declare_type.global
@@ -221,7 +221,7 @@ function! s:getModuleComplete(type, mod_name, prop_name, operator)"{{{
   " complete node's builtin modules and global modules
   let ret = []
   if (has_key(mods, a:mod_name))
-    let mod = deepcopy(mods[a:mod_name])
+    let mod = deepcopy(mods[a:mod_name].props)
     " no prop_name suplied
     if (len(a:prop_name) == 0)
       let ret = mod
@@ -244,6 +244,7 @@ function! s:getModuleComplete(type, mod_name, prop_name, operator)"{{{
       let item.word = prefix . item.word . suffix
     endfor
     call s:addFunctionParen(ret)
+  endif
 
   return ret
 endfunction"}}}

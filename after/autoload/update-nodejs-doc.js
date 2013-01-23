@@ -91,12 +91,14 @@ function extract2VimScript(body) {
       vimObject;
 
   var _globals = sortModuleByName(mergeObject(getModsInfo(json.globals), getModsInfo(json.vars))),
-      _moduels = sortModuleByName(getModInfo(json.modules)),
-      _vars = (getVarInfo(json.vars)).concat(getVarInfo(json.globals)).sort(sortCompleteWord);
+      _modules = sortModuleByName(getModsInfo(json.modules)),
+      _vars = (getVarInfo(json.vars))
+                .concat(getVarInfo(json.globals))
+                  .sort(sortCompleteWord);
 
   vimObject = {
     'globals': _globals,
-    'modules': _moduels,
+    'modules': _modules,
     'vars': _vars
   };
 
@@ -121,77 +123,110 @@ function getModsInfo(mods) {
     return ret;
   }
 
-  var getModInfo = function(mod) {
-    // module name
-    var mod_name = mod.name;
-    // invalid module name like 'tls_(ssl)'
-    // then guess the module name from textRaw 'TLS (SSL)'
-    if ((/[^_a-z\d\$]/i).test(mod_name)) {
-      var textRaw = mod.textRaw;
-      var matched = textRaw.match(/^[_a-z\d\$]+/i);
-      if (matched) {
-        var mod_name_len = matched[0].length;
-        mod_name = mod_name.substr(0, mod_name_len);
+
+  mods.forEach(function(mod) {
+    var mod_name = getModName(mod),
+        mod_props = getModProps(mod);
+
+    // class
+    var mod_classes = [];
+    var classes = mod.classes || [];
+    classes.forEach(function(cls) {
+      var names = getClassName(cls, mod_name);
+      var cls_name = names.cls_name,
+          _mod_name = names.mod_name;
+      if (_mod_name && mod_name != _mod_name) {
+        mod_name = names.mod_name;
+      }
+
+      var mod_cls = {};
+      mod_cls[cls_name] = getModProps(cls);
+
+      mod_classes.push(mod_cls);
+    });
+
+    if (mod_props.length == 0 && mod_classes.length == 0) {
+    } else {
+      ret[mod_name] = {
+        props: mod_props,
+        classes: mod_classes
       }
     }
-
-    // methods + properties
-    var protos = [];
-
-    // methods
-    var methods = mod.methods || [];
-    methods.forEach(function(method) {
-      var item = {};
-      if (method.type == 'method') {
-        item.word = method.name;
-        item.info = method.textRaw;
-        item.kind = 'f'
-
-        protos.push(item);
-      }
-    });
-
-    // properties
-    var properties = mod.properties || [];
-    properties.forEach(function(property) {
-      var item = {};
-      item.word = property.name;
-      item.kind = 'm'
-
-      protos.push(item);
-    });
-
-    // classes
-    var classes = mod.classes || {};
-    classes.forEach(function(cls) {
-      var names = cls.name;
-
-      // 
-      var chains = names.split('.');
-      chains.forEach(function(name) {
-      });
-
-    });
-
-    // sort items
-    protos = protos.sort(sortCompleteWord);
-
-    return {
-      name: mod_name,
-      info: protos
-    };
-  };
-
-  // 
-  mods.forEach(function(mod) {
-    var mod_info = getModInfo(mod);
-
-    ret[mod.name] = mod_info;
   });
 
   return ret;
 }
 
+function getModProps(mod) {
+  var props = [];
+  // properties
+  var properties = mod.properties || [];
+  properties.forEach(function(property) {
+    var item = {};
+    item.word = property.name;
+    item.kind = 'm'
+
+    props.push(item);
+  });
+
+  // methods
+  var methods = mod.methods || [];
+  methods.forEach(function(method) {
+    var item = {};
+    if (method.type == 'method') {
+      item.word = method.name;
+      item.info = method.textRaw;
+      item.kind = 'f'
+
+      props.push(item);
+    }
+  });
+
+  props = props.sort(sortCompleteWord);
+
+  return props;
+}
+
+function getModName(mod) {
+  // module name
+  var mod_name = mod.name;
+  // invalid module name like 'tls_(ssl)'
+  // then guess the module name from textRaw 'TLS (SSL)'
+  if ((/[^_a-z\d\$]/i).test(mod_name)) {
+    var textRaw = mod.textRaw;
+    var matched = textRaw.match(/^[_a-z\d\$]+/i);
+    if (matched) {
+      var mod_name_len = matched[0].length;
+      mod_name = mod_name.substr(0, mod_name_len);
+    }
+  }
+
+  return mod_name;
+}
+
+function getClassName(cls, mod_name) {
+  var str = cls.name;
+  var names = str.split('.');
+
+  var _mod_name = names[0],
+      cls_name;
+
+  if (names.length == 1) {
+    cls_name = _mod_name;
+  }
+  else {
+    // 修正 mod_name; events.EventEmitter
+    if (_mod_name.toLowerCase() == mod_name.toLowerCase()) {
+      mod_name = _mod_name;
+    }
+    cls_name = names.slice(1).join('.');
+  }
+
+  return {
+    mod_name: mod_name,
+    cls_name: cls_name
+  };
+}
 
 function getVarInfo(vars) {
   var ret = [];
