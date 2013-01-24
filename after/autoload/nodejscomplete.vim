@@ -154,7 +154,7 @@ function! s:getObjDeclareInfo(var_name, position)"{{{
     let parts = split(matched, '\.')
     return {
       \ 'type': s:js_obj_declare_type.constructor,
-      \ 'value': [s:getObjDeclareInfo(parts[0], begin_position)] + parts[1:]
+      \ 'value': [s:getObjDeclareInfo(parts[0], begin_position), join(parts[1:], '.')]
       \}
   endif
 
@@ -186,23 +186,15 @@ function! s:getModuleComplete(type, mod_name, prop_name, operator)"{{{
 
   " new
   if a:type == s:js_obj_declare_type.constructor
-    let chains = a:mod_name"{{{
-    let main_obj = chains[0]
+    let [main_obj, class_name] = a:mod_name"{{{
 
     " global
-    if main_obj.type == s:js_obj_declare_type.global || main_obj.value == 'global'
-      if main_obj.type == s:js_obj_declare_type.global
-        let class_names = [main_obj.value] + chains[1 :]
-      else
-        let class_names = chains[1 :]
-      endif
-      let mod_name = ''
-      let ret = s:getConstructorModuleComplete(a:type, mod_name, class_names)
+    if main_obj.type == s:js_obj_declare_type.global
+      let ret = s:getConstructorModuleComplete(main_obj.type, '', class_name)
     " require
     elseif main_obj.type == s:js_obj_declare_type.require
       let mod_name = main_obj.value
-      let class_names = chains[1 :]
-      let ret = s:getConstructorModuleComplete(a:type, mod_name, class_names)
+      let ret = s:getConstructorModuleComplete(main_obj.type, mod_name, class_name)
     " ignore
     else
       let ret = []
@@ -221,7 +213,7 @@ function! s:getModuleComplete(type, mod_name, prop_name, operator)"{{{
   " complete node's builtin modules and global modules
   let ret = []
   if (has_key(mods, a:mod_name))
-    let mod = deepcopy(mods[a:mod_name].props)
+    let mod = deepcopy(mods[a:mod_name].props)"{{{
     " no prop_name suplied
     if (len(a:prop_name) == 0)
       let ret = mod
@@ -243,7 +235,7 @@ function! s:getModuleComplete(type, mod_name, prop_name, operator)"{{{
     for item in ret
       let item.word = prefix . item.word . suffix
     endfor
-    call s:addFunctionParen(ret)
+    call s:addFunctionParen(ret)"}}}
   endif
 
   return ret
@@ -407,7 +399,30 @@ function! s:getModuleNamesInNode_modulesFolder(current_dir)"{{{
 endfunction"}}}
 
 function! s:getConstructorModuleComplete(type, mod_name, class_names)
-  Decho 'getConstructorModuleComplete: ' . string(a:)
+  Decho 'getConstructorModuleComplete, type:' . a:type . ', mod_name:' . a:mod_name . ', class_names:' . a:class_names
+
+  if a:type == s:js_obj_declare_type.global
+
+  elseif a:type == s:js_obj_declare_type.require
+    let mods = g:nodejs_complete_data.modules
+    if (has_key(mods, a:mod_name))
+      let mod = mods[a:mod_name]
+    else
+      let mod = {}
+    endif
+
+    if (has_key(mod, 'classes'))
+      let classes = mod.classes
+    else
+      let classes = {}
+    endif
+
+    if (has_key(classes, a:mod_name))
+    endif
+
+
+    let class = filter(classes, 'v:key === "' . a:mod_name . '"')
+  endif
 endfunction
 
 function! s:addFunctionParen(compl_list)"{{{

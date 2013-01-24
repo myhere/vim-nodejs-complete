@@ -129,7 +129,7 @@ function getModsInfo(mods) {
         mod_props = getModProps(mod);
 
     // class
-    var mod_classes = [];
+    var mod_classes = {};
     var classes = mod.classes || [];
     classes.forEach(function(cls) {
       var names = getClassName(cls, mod_name);
@@ -139,13 +139,10 @@ function getModsInfo(mods) {
         mod_name = names.mod_name;
       }
 
-      var mod_cls = {};
-      mod_cls[cls_name] = getModProps(cls);
-
-      mod_classes.push(mod_cls);
+      mod_classes[cls_name] = getModProps(cls);
     });
 
-    if (mod_props.length == 0 && mod_classes.length == 0) {
+    if (mod_props.length == 0 && classes.length == 0) {
     } else {
       ret[mod_name] = {
         props: mod_props,
