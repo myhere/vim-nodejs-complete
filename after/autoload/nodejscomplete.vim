@@ -182,43 +182,22 @@ endfunction"}}}
 
 " only complete nodejs's module info
 function! s:getModuleComplete(type, mod_name, prop_name, operator)"{{{
-  call s:loadNodeDocData()
-
   " new
   if a:type == s:js_obj_declare_type.constructor
-    let [main_obj, class_name] = a:mod_name"{{{
-
-    " global
-    if main_obj.type == s:js_obj_declare_type.global
-      let ret = s:getConstructorModuleComplete(main_obj.type, '', class_name)
-    " require
-    elseif main_obj.type == s:js_obj_declare_type.require
-      let mod_name = main_obj.value
-      let ret = s:getConstructorModuleComplete(main_obj.type, mod_name, class_name)
-    " ignore
-    else
-      let ret = []
-    endif
-
-    return ret"}}}
+    let list = s:getConstructorModuleComplete(a:mod_name)
+  " require and global
+  else
+    let list = s:getNodeDocList(a:type, a:mod_name, 'props')
   endif
 
-  if a:type == s:js_obj_declare_type.global
-    let type = 'globals'
-  elseif a:type == s:js_obj_declare_type.require
-    let type = 'modules'
-  end
-  let mods = {}
-  let mods = g:nodejs_complete_data[type]
-  " complete node's builtin modules and global modules
-  let ret = []
-  if (has_key(mods, a:mod_name))
-    let mod = deepcopy(mods[a:mod_name].props)"{{{
+  if !len(list)
+    return list
+  else
     " no prop_name suplied
     if (len(a:prop_name) == 0)
-      let ret = mod
+      let ret = list
     else
-      let ret = s:smartFilter(mod, 'v:val["word"]', a:prop_name)
+      let ret = s:smartFilter(list, 'v:val["word"]', a:prop_name)
     endif
 
     let [prefix, suffix] = ['', '']
@@ -235,10 +214,10 @@ function! s:getModuleComplete(type, mod_name, prop_name, operator)"{{{
     for item in ret
       let item.word = prefix . item.word . suffix
     endfor
-    call s:addFunctionParen(ret)"}}}
-  endif
+    call s:addFunctionParen(ret)
 
-  return ret
+    return ret
+  endif
 endfunction"}}}
 
 function! s:getVariableComplete(context, var_name)"{{{
@@ -398,32 +377,32 @@ function! s:getModuleNamesInNode_modulesFolder(current_dir)"{{{
   return ret
 endfunction"}}}
 
-function! s:getConstructorModuleComplete(type, mod_name, class_names)
-  Decho 'getConstructorModuleComplete, type:' . a:type . ', mod_name:' . a:mod_name . ', class_names:' . a:class_names
+function! s:getConstructorModuleComplete(constructor_info)"{{{
+  Decho 'getConstructorModuleComplete, constructor_info: ' . string(a:constructor_info)
 
-  if a:type == s:js_obj_declare_type.global
+  let ret = []
 
-  elseif a:type == s:js_obj_declare_type.require
-    let mods = g:nodejs_complete_data.modules
-    if (has_key(mods, a:mod_name))
-      let mod = mods[a:mod_name]
-    else
-      let mod = {}
+  let [declare_info, class_name] = a:constructor_info
+  let mod_name = declare_info.value
+  " global
+  if declare_info.type == s:js_obj_declare_type.global
+    " Buffer
+    " global.Buffer
+    if class_name == '' || mod_name == 'global'
+      let mod_name = class_name
+      let class_name = '.self'
     endif
-
-    if (has_key(mod, 'classes'))
-      let classes = mod.classes
-    else
-      let classes = {}
-    endif
-
-    if (has_key(classes, a:mod_name))
-    endif
-
-
-    let class = filter(classes, 'v:key === "' . a:mod_name . '"')
   endif
-endfunction
+
+  " global or require
+  if declare_info.type == s:js_obj_declare_type.global ||
+    \ declare_info.type == s:js_obj_declare_type.require
+
+    let ret = s:getNodeDocList(declare_info.type, mod_name, 'classes', class_name)
+  endif
+
+  return ret
+endfunction"}}}
 
 function! s:addFunctionParen(compl_list)"{{{
   for item in a:compl_list
@@ -452,6 +431,53 @@ function! s:loadNodeDocData()"{{{
   endif
 endfunction"}}}
 
+" get infomation from g:nodejs_complete_data
+" @param mod_type {Enum}
+" @param mod_name {String}
+" @param type {Enum} 'props' | 'classes'
+" @param {String} if type == 'classes', then it exists and is class_name
+"                 else do not exist
+function! s:getNodeDocList(mod_type, mod_name, type, ...)"{{{
+  call s:loadNodeDocData()
+
+  if a:mod_type == s:js_obj_declare_type.require
+    let type = 'modules'
+  else
+    let type = 'globals'
+  endif
+
+  if (has_key(g:nodejs_complete_data[type], a:mod_name))
+    let mod = g:nodejs_complete_data[type][a:mod_name]
+  else
+    let mod = {}
+  endif
+
+  " class
+  if a:0 != 0
+    let class_name = a:1
+    if (has_key(mod, a:type))
+      let classes = mod[a:type]
+    else
+      let classes = {}
+    endif
+
+    if (has_key(classes, a:1))
+      let ret = classes[class_name]
+    else
+      let ret = []
+    endif
+  " property
+  else
+    if (has_key(mod, a:type))
+      let ret = mod[a:type]
+    else
+      let ret = []
+    endif
+  endif
+
+  return deepcopy(ret)
+endfunction"}}}
+
 " copied from FuzzyFinder/autoload/fuf.vim
 " returns list of paths.
 " An argument for glob() is normalized in order to avoid a bug on Windows.
@@ -460,7 +486,6 @@ function! s:fuzglob(expr)"{{{
   " but "**/" include "./". I don't know why.
   return split(glob(substitute(a:expr, '\', '/', 'g')), "\n")
 endfunction"}}}
-
 
 " when x <= 0, return [0, 0]
 " when y <= 0, move to previous line end
@@ -480,7 +505,6 @@ function! s:fixPosition(position)"{{{
 
   return [x, y]
 endfunction"}}}
-
 
 " return a List contains every line
 function! s:getLinesInRange(begin_position, end_position)"{{{
