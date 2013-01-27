@@ -90,11 +90,14 @@ function extract2VimScript(body) {
   var json = JSON.parse(body),
       vimObject;
 
-  var _globals = sortModuleByName(mergeObject(getModsInfo(json.globals), getModsInfo(json.vars))),
+  var _globals = sortModuleByName(mergeObject(getModsInfo(json.globals),
+                                              getModsInfo(json.vars))),
       _modules = sortModuleByName(getModsInfo(json.modules)),
       _vars = (getVarInfo(json.vars))
                 .concat(getVarInfo(json.globals))
                   .sort(sortCompleteWord);
+
+  _globals = copyGlobals(_globals, _modules);
 
   vimObject = {
     'globals': _globals,
@@ -155,27 +158,63 @@ function getModsInfo(mods) {
 }
 
 function getModProps(mod) {
+  var is_legal_property_name = function(name) {
+    name += '';
+    name = name.trim();
+
+    return (/^[$a-zA-Z_][$a-zA-Z0-9_]*$/i).test(name);
+  };
+
   var props = [];
   // properties
   var properties = mod.properties || [];
   properties.forEach(function(property) {
-    var item = {};
-    item.word = property.name;
-    item.kind = 'm'
+    var name = property.name;
+    if (is_legal_property_name(name)) {
+      var item = {};
+      item.word = name;
+      item.kind = 'm';
+      item.info = ' ';
 
-    props.push(item);
+      props.push(item);
+    } else {
+      console.log('illegal name: ' + name);
+    }
   });
 
   // methods
   var methods = mod.methods || [];
   methods.forEach(function(method) {
-    var item = {};
-    if (method.type == 'method') {
-      item.word = method.name;
-      item.info = method.textRaw;
-      item.kind = 'f'
+    var name = method.name;
+    if (is_legal_property_name(name)) {
+      var item = {};
+      if (method.type == 'method') {
+        item.word = name;
+        item.info = method.textRaw;
+        item.kind = 'f';
+
+        props.push(item);
+      }
+    } else {
+      console.log('illegal name: ' + name);
+    }
+  });
+
+  // classes
+  var classes = mod.classes || [];
+  classes.forEach(function(cls) {
+    var mod_name = getModName(mod);
+    var names = getClassName(cls, mod_name);
+    var name = names.cls_name;
+    if (is_legal_property_name(name)) {
+      var item = {};
+      item.word = names.cls_name;
+      item.kind = 'f';
+      item.info = ' ';
 
       props.push(item);
+    } else {
+      console.log('illegal name: ' + name);
     }
   });
 
@@ -242,7 +281,8 @@ function getVarInfo(vars) {
     } else {
       ret.push({
         word: _var.name,
-        kind: 'v'
+        kind: 'v',
+        info: ' '
       });
     }
   });
@@ -251,6 +291,19 @@ function getVarInfo(vars) {
   ret = ret.sort(sortCompleteWord);
 
   return ret;
+}
+
+function copyGlobals(globals, modules) {
+  var _Buffer = modules.buffer.classes.Buffer;
+
+  globals.Buffer = {
+    props: [],
+    classes: {
+      '.self': _Buffer
+    }
+  };
+
+  return globals;
 }
 
 

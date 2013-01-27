@@ -80,7 +80,7 @@ function! s:getNodeComplete(base, context)"{{{
     let declare_info = s:getObjDeclareInfo(var_name, position)
     Decho 'mod_info: ' . string(declare_info) . '; compl_prefix: ' . a:base
 
-    let compl_list = s:getModuleComplete(declare_info.type, declare_info.value,
+    let compl_list = s:getObjectComplete(declare_info.type, declare_info.value,
                                         \ a:base, operator)
 
     let ret = {
@@ -181,10 +181,10 @@ function! s:isDeclaration(position)"{{{
 endfunction"}}}
 
 " only complete nodejs's module info
-function! s:getModuleComplete(type, mod_name, prop_name, operator)"{{{
+function! s:getObjectComplete(type, mod_name, prop_name, operator)"{{{
   " new
   if a:type == s:js_obj_declare_type.constructor
-    let list = s:getConstructorModuleComplete(a:mod_name)
+    let list = s:getConstructedObjectComplete(a:mod_name)
   " require and global
   else
     let list = s:getNodeDocList(a:type, a:mod_name, 'props')
@@ -377,8 +377,8 @@ function! s:getModuleNamesInNode_modulesFolder(current_dir)"{{{
   return ret
 endfunction"}}}
 
-function! s:getConstructorModuleComplete(constructor_info)"{{{
-  Decho 'getConstructorModuleComplete, constructor_info: ' . string(a:constructor_info)
+function! s:getConstructedObjectComplete(constructor_info)"{{{
+  Decho 'getConstructedObjectComplete, constructor_info: ' . string(a:constructor_info)
 
   let ret = []
 
@@ -387,8 +387,11 @@ function! s:getConstructorModuleComplete(constructor_info)"{{{
   " global
   if declare_info.type == s:js_obj_declare_type.global
     " Buffer
+    if class_name == ''
+      let class_name = '.self'
+    endif
     " global.Buffer
-    if class_name == '' || mod_name == 'global'
+    if mod_name == 'global'
       let mod_name = class_name
       let class_name = '.self'
     endif

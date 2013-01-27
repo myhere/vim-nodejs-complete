@@ -30,6 +30,9 @@ var tester = new A.B.C();
 emitter.
 buffer.
 tester.
+events.
+
+require.
 
 
 cons
