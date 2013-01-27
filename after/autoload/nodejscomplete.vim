@@ -147,7 +147,7 @@ function! s:getObjDeclareInfo(var_name, position)"{{{
 
   " new
   let new_stmt_reg = decl_stmt_prefix_reg .
-                    \ 'new\_s\zs' . s:js_varname_reg . '\%(\_s*\.\_s*' .
+                    \ 'new\_s\+\zs' . s:js_varname_reg . '\%(\_s*\.\_s*' .
                     \  s:js_varname_reg . '\)*\ze'
   let matched = matchstr(code, new_stmt_reg)
   if len(matched)
@@ -157,6 +157,32 @@ function! s:getObjDeclareInfo(var_name, position)"{{{
       \ 'value': [s:getObjDeclareInfo(parts[0], begin_position), join(parts[1:], '.')]
       \}
   endif
+
+  " new
+  " var emitter = new (require('events')).EventEmitter;
+  let new_stmt_reg = decl_stmt_prefix_reg .
+                    \ 'new\_s\+' .
+                    \ '(\_s*require\_s*(\([''"]\)\(' . s:js_varname_reg . '\)\1\_s*)\_s*)' .
+                    \ '\_s*' .
+                    \ '\(\%(\.' . s:js_varname_reg . '\)\+\)'
+
+  let matchedList = matchlist(code, new_stmt_reg)
+  if (len(matchedList))
+    Decho 'new stmt: ' . string(matchedList)
+    let props = [matchedList[3][1:]] + matchedList[4:]
+    Decho 'props: ' . string(props)
+    return {
+      \ 'type': s:js_obj_declare_type.constructor,
+      \ 'value': [
+      \   {
+      \     'type': s:js_obj_declare_type.require,
+      \     'value': matchedList[2]
+      \   },
+      \   join(props, '')
+      \ ]
+      \}
+  endif
+
 
   " assign
   let assign_stmt_reg = decl_stmt_prefix_reg . '\zs' . s:js_varname_reg . '\ze'

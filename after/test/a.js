@@ -19,9 +19,10 @@ var a = {hello: 'world'},
 b.
 
 
+var emitter = new (require('events')).EventEmitter;
+emitter.
+
 var events = require('events');
-
-
 var emitter = new events.EventEmitter();
 var buffer = new Buffer;
 // var buffer = new global.Buffer;
@@ -31,8 +32,6 @@ emitter.
 buffer.
 tester.
 events.
-
-require.
 
 
 cons
