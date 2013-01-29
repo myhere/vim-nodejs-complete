@@ -10,7 +10,23 @@ Support node build-in module's method completion(`ctrl-x ctrl-o`) in `js` file w
 Download the [tarball](https://github.com/myhere/vim-nodejs-complete/zipball/master) and extract to your vimfiles(`~/.vim` or `~/vimfiles`) folder.
 
 Completion require `:filetype plugin on`, please make sure it's on.
-For integration with [jscomplete](https://github.com/teramako/jscomplete-vim), set `let g:node_usejscomplete = 1`. *Note*: you must install jscomplete manually.
+
+## Settings
+
+```viml
+let g:nodejs_complete_config = {
+\  'js_compl_fn': 'jscomplete#CompleteJS',
+\  'max_node_compl_len': 15
+\}
+```
+
+### js_compl_fn
+* `String` function name, called to complete javascript
+* default to `javascriptcomplete#CompleteJS`
+* if you want to integrate with [jscomplete](https://github.com/teramako/jscomplete-vim), set it to `jscomplete#CompleteJS`, make sure it's installed.
+
+### max_node_compl_len
+* `Number`, length of nodejs complete items. set to 0 if unlimited
 
 
 ## Example

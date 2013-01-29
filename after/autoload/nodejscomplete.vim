@@ -15,17 +15,26 @@ let s:js_obj_declare_type = {
   \ }
 
 " settings
-if !exists('g:nodejs_complete_max_compl_len')
-  let g:nodejs_complete_max_compl_len = 15
+" default setting
+let s:nodejs_complete_config = {
+  \  'js_compl_fn': 'javascriptcomplete#CompleteJS',
+  \  'max_node_compl_len': 15
+  \}
+if exists('g:nodejs_complete_config') && type(g:nodejs_complete_config) == type({})
+  let g:nodejs_complete_config = extend(s:nodejs_complete_config, g:nodejs_complete_config)
+else
+  let g:nodejs_complete_config = s:nodejs_complete_config
 endif
+unlet s:nodejs_complete_config
 
 function! nodejscomplete#CompleteJS(findstart, base)"{{{
   if a:findstart
-    if exists('g:node_usejscomplete') && g:node_usejscomplete && 0
-      let start = jscomplete#CompleteJS(a:findstart, a:base)
-    else
-      let start = javascriptcomplete#CompleteJS(a:findstart, a:base)
-    endif
+    try
+      let JS_compl_fn = function(g:nodejs_complete_config.js_compl_fn)
+      let start = call(JS_compl_fn, [a:findstart, a:base])
+    catch /.*/
+      echo '!!!!!!!!!!function [' . g:nodejs_complete_config.js_compl_fn . '] is not exists!'
+    endtry
 
     Decho 'start: ' . start
     " str[start: end] end 为负数时从末尾截取
@@ -37,22 +46,31 @@ function! nodejscomplete#CompleteJS(findstart, base)"{{{
     endif
     return start
   else
+    let posi = getpos('.')
     let result = s:getNodeComplete(a:base, b:nodecompl_context)
+    " the function above will move the cursor
+    " so we restore the cursor position
+    " JS_compl_fn below may rely on the cursor position
+    call setpos('.', posi)
+
     Decho 'nodecomplete: ' . string(result)
     unlet b:nodecompl_context
 
     let nodejs_compl = result.complete
     " limit nodejs complete count
-    if g:nodejs_complete_max_compl_len != 0
-      let nodejs_compl = nodejs_compl[0 : g:nodejs_complete_max_compl_len - 1]
+    if g:nodejs_complete_config.max_node_compl_len != 0
+      let nodejs_compl = nodejs_compl[0 : g:nodejs_complete_config.max_node_compl_len - 1]
     endif
 
     if result.continue
-      if exists('g:node_usejscomplete') && g:node_usejscomplete && 0
-        let js_compl = jscomplete#CompleteJS(a:findstart, a:base)
-      else
-        let js_compl = javascriptcomplete#CompleteJS(a:findstart, a:base)
-      endif
+      try 
+        let JS_compl_fn = function(g:nodejs_complete_config.js_compl_fn)
+        let js_compl = call(JS_compl_fn, [a:findstart, a:base])
+      catch /.*/
+        echo '!!!!!!!!!!function [' . g:nodejs_complete_config.js_compl_fn . '] is not exists!'
+      endtry
+
+      Decho 'js_compl: ' . string(js_compl)
 
       return nodejs_compl + js_compl
     else
