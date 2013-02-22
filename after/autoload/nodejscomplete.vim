@@ -36,7 +36,7 @@ function! nodejscomplete#CompleteJS(findstart, base)"{{{
       echo '!!!!!!!!!!function [' . g:nodejs_complete_config.js_compl_fn . '] is not exists!'
     endtry
 
-    Decho 'start: ' . start
+    "Decho 'start: ' . start
     " str[start: end] end 为负数时从末尾截取
     if start - 1 < 0
       let b:nodecompl_context = ''
@@ -53,7 +53,7 @@ function! nodejscomplete#CompleteJS(findstart, base)"{{{
     " JS_compl_fn below may rely on the cursor position
     call setpos('.', posi)
 
-    Decho 'nodecomplete: ' . string(result)
+    "Decho 'nodecomplete: ' . string(result)
     unlet b:nodecompl_context
 
     let nodejs_compl = result.complete
@@ -70,7 +70,7 @@ function! nodejscomplete#CompleteJS(findstart, base)"{{{
         echo '!!!!!!!!!!function [' . g:nodejs_complete_config.js_compl_fn . '] is not exists!'
       endtry
 
-      Decho 'js_compl: ' . string(js_compl)
+      "Decho 'js_compl: ' . string(js_compl)
 
       return nodejs_compl + js_compl
     else
@@ -81,22 +81,22 @@ endfunction"}}}
 
 " get complete
 function! s:getNodeComplete(base, context)"{{{
-  Decho 'base: ' . a:base
-  Decho 'context: ' . a:context
+  "Decho 'base: ' . a:base
+  "Decho 'context: ' . a:context
 
   " TODO: 排除 module.property.h 情况
   let mod_reg = '\(' . s:js_varname_reg . '\)\s*\(\.\|\[\s*["'']\?\)\s*$'
   let matched = matchlist(a:context, mod_reg)
-  Decho 'mod_reg: ' . mod_reg
+  "Decho 'mod_reg: ' . mod_reg
 
   " 模块属性补全
   if len(matched) > 0
     let var_name = matched[1]
     let operator = matched[2]
     let position = [line('.'), len(a:context) - len(matched[0])]
-    Decho 'var_name: ' . var_name . ' ; operator: ' . operator
+    "Decho 'var_name: ' . var_name . ' ; operator: ' . operator
     let declare_info = s:getObjDeclareInfo(var_name, position)
-    Decho 'mod_info: ' . string(declare_info) . '; compl_prefix: ' . a:base
+    "Decho 'mod_info: ' . string(declare_info) . '; compl_prefix: ' . a:base
 
     let compl_list = s:getObjectComplete(declare_info.type, declare_info.value,
                                         \ a:base, operator)
@@ -111,7 +111,7 @@ function! s:getNodeComplete(base, context)"{{{
     endif
   " 全局补全
   else
-    Decho 'var complete'
+    "Decho 'var complete'
     let ret = {
       \ 'continue': 1,
       \ 'complete': s:getVariableComplete(a:context, a:base)
@@ -123,7 +123,7 @@ endfunction"}}}
 
 function! s:getObjDeclareInfo(var_name, position)"{{{
   let position = s:fixPosition(a:position)
-  Decho 'position: ' . string(position)
+  "Decho 'position: ' . string(position)
 
   if position[0] <= 0
     return {
@@ -149,7 +149,7 @@ function! s:getObjDeclareInfo(var_name, position)"{{{
   endif
 
   let lines = s:getLinesInRange(begin_position, position)
-  Decho 'lines: ' . string(lines)
+  "Decho 'lines: ' . string(lines)
   let code = join(lines, "\n")
 
   " require
@@ -186,9 +186,9 @@ function! s:getObjDeclareInfo(var_name, position)"{{{
 
   let matchedList = matchlist(code, new_stmt_reg)
   if (len(matchedList))
-    Decho 'new stmt: ' . string(matchedList)
+    "Decho 'new stmt: ' . string(matchedList)
     let props = [matchedList[3][1:]] + matchedList[4:]
-    Decho 'props: ' . string(props)
+    "Decho 'props: ' . string(props)
     return {
       \ 'type': s:js_obj_declare_type.constructor,
       \ 'value': [
@@ -246,7 +246,7 @@ function! s:getObjectComplete(type, mod_name, prop_name, operator)"{{{
 
     let [prefix, suffix] = ['', '']
     let matched = matchlist(a:operator, '\[\s*\(["'']\)\?')
-    Decho 'operator_matched: ' . string(matched)
+    "Decho 'operator_matched: ' . string(matched)
     if len(matched)
       if len(matched[1])
         let [prefix, suffix] = ['', matched[1] . ']']
@@ -265,12 +265,12 @@ function! s:getObjectComplete(type, mod_name, prop_name, operator)"{{{
 endfunction"}}}
 
 function! s:getVariableComplete(context, var_name)"{{{
-  Decho 'var_name: ' . a:var_name
+  "Decho 'var_name: ' . a:var_name
 
   " complete require's arguments
   let matched = matchlist(a:context, 'require\s*(\s*\%(\([''"]\)\(\.\{1,2}.*\)\=\)\=$')
   if (len(matched) > 0)
-    Decho 'require complete: ' . string(matched)
+    "Decho 'require complete: ' . string(matched)
 
     if (len(matched[2]) > 0)          " complete -> require('./
       let mod_names = s:getModuleInCurrentDir(a:context, a:var_name, matched)
@@ -322,13 +322,13 @@ function! s:getModuleInCurrentDir(context, var_name, matched)"{{{
     let path = path . compl_prefix
   endif
 
-  Decho 'path: ' . path
+  "Decho 'path: ' . path
 
   let current_dir = expand('%:p:h')
   let glob_path = current_dir . '/' . path . '*'
   let files = s:fuzglob(glob_path)
-  Decho 'glob: ' . glob_path
-  Decho 'current dir files: ' . string(files)
+  "Decho 'glob: ' . glob_path
+  "Decho 'current dir files: ' . string(files)
   for file in files
     " not '.' and '..'
     if ((isdirectory(file) ) || file =~? '\.json$\|\.js$') 
@@ -342,9 +342,9 @@ function! s:getModuleInCurrentDir(context, var_name, matched)"{{{
       let mod_file = substitute(mod_file, '\', '/', 'g')
       let start = len(glob_path) - 1 " substract character '*'
       let compl_infix = strpart(mod_file, start)
-      Decho 'idx: ' . start
-      Decho 'compl_infix: ' . compl_infix
-      Decho 'relative file: ' . mod_file
+      "Decho 'idx: ' . start
+      "Decho 'compl_infix: ' . compl_infix
+      "Decho 'relative file: ' . mod_file
 
       let mod_name = compl_prefix . a:var_name . compl_infix
       " file module, not a directory
@@ -352,12 +352,12 @@ function! s:getModuleInCurrentDir(context, var_name, matched)"{{{
         let mod_name = mod_name . a:matched[1] . ')'
       endif
 
-      Decho 'mod_name: ' . mod_name
+      "Decho 'mod_name: ' . mod_name
       call add(mod_names, mod_name)
     endif
   endfor
 
-  Decho 'relative path: ' . path
+  "Decho 'relative path: ' . path
 
   return mod_names
 endfunction"}}}
@@ -388,23 +388,23 @@ endfunction"}}}
 function! s:getModuleNamesInNode_modulesFolder(current_dir)"{{{
   " ensure platform coincidence
   let base_dir = substitute(a:current_dir, '\', '/', 'g')
-  Decho 'base_dir: ' . base_dir
+  "Decho 'base_dir: ' . base_dir
 
   let ret = []
 
   let parts = split(base_dir, '/', 1)
-  Decho 'parts: ' . string(parts)
+  "Decho 'parts: ' . string(parts)
   let idx = 0
   let len = len(parts)
   let sub_parts = []
   while idx < len
     let sub_parts = add(sub_parts, parts[idx])
     let module_dir = join(sub_parts, '/') . '/node_modules'
-    Decho 'directory: ' . module_dir
+    "Decho 'directory: ' . module_dir
 
     if (isdirectory(module_dir))
       let files = s:fuzglob(module_dir . '/*')
-      Decho 'node_module files: ' . string(files)
+      "Decho 'node_module files: ' . string(files)
       for file in files
         if (isdirectory(file) || file =~? '\.json$\|\.js$')
           let mod_name = matchstr(file, '[^/\\]\+$')
@@ -416,13 +416,13 @@ function! s:getModuleNamesInNode_modulesFolder(current_dir)"{{{
     let idx = idx + 1
   endwhile
 
-  Decho 'npm modules: ' . string(ret)
+  "Decho 'npm modules: ' . string(ret)
 
   return ret
 endfunction"}}}
 
 function! s:getConstructedObjectComplete(constructor_info)"{{{
-  Decho 'getConstructedObjectComplete, constructor_info: ' . string(a:constructor_info)
+  "Decho 'getConstructedObjectComplete, constructor_info: ' . string(a:constructor_info)
 
   let ret = []
 
@@ -468,12 +468,12 @@ function! s:loadNodeDocData()"{{{
   if (!exists('g:nodejs_complete_data'))
     " load data from external file
     let filename = s:nodejs_doc_file
-    Decho 'filename: ' . filename
+    "Decho 'filename: ' . filename
     if (filereadable(filename))
       execute 'so ' . filename
-      Decho string(g:nodejs_complete_data)
+      "Decho string(g:nodejs_complete_data)
     else
-      Decho 'not readable: ' . filename
+      "Decho 'not readable: ' . filename
     endif
   endif
 endfunction"}}}
