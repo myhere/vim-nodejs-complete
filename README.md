@@ -3,7 +3,7 @@ vim-nodejs-complete
 
 Nodejs `'omnifunc'` function of vim
 
-Support node build-in module's method completion(`ctrl-x ctrl-o`) in `js` file with preview.
+Support node's builtin module's method&property completion(`ctrl-x ctrl-o`) in `js` file with preview.
 
 
 ## Install
@@ -12,6 +12,7 @@ Download the [tarball](https://github.com/myhere/vim-nodejs-complete/zipball/mas
 Completion require `:filetype plugin on`, please make sure it's on.
 
 ## Settings
+All the settings is optional.
 
 ```viml
 let g:nodejs_complete_config = {
